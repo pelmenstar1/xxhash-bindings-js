@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+      "module": "Preserve",
+      "target": "ES5",
+      "moduleResolution": "Bundler",
+      "declaration": true,
+      "outDir": "./dist"
+    },
+    "include": [
+      "**/*"
+    ],
+    "exclude": [
+      "**/*.test.ts"
+    ]
+}
