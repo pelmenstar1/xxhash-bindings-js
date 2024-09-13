@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { xxhash32, xxhash64, xxhash3, xxhash3_128, FileHashingType } from "./index.js";
+import { xxhash32, xxhash64, xxhash3, xxhash3_128, FileHashingType, FileHashingOptions } from "./index.js";
 
 type AnyArray<Arr extends any[]> = {
   [Index in keyof Arr]: any;
@@ -70,35 +70,35 @@ describe("file hashing", () => {
   const TEST_FILE_PATH = "./test_data/image1.png";
 
   test("xxhash32", () => {
-    expect(xxhash32.file(TEST_FILE_PATH, 1, FileHashingType.MAP)).toBe(1945663033)
+    expect(xxhash32.file({ path: TEST_FILE_PATH, seed: 1, type: FileHashingType.MAP })).toBe(1945663033)
   })
 
   test("xxhash64", () => {
-    expect(xxhash64.file(TEST_FILE_PATH, 1)).toBe(BigInt("17740802669433987345"))
+    expect(xxhash64.file({ path: TEST_FILE_PATH, seed: 1 })).toBe(BigInt("17740802669433987345"))
   })
 
   test("xxhash3", () => {
     const expected = BigInt("12531405323377630900");
 
-    expect(xxhash3.file(TEST_FILE_PATH)).toBe(expected)
-    expect(xxhash3.file(TEST_FILE_PATH, 0)).toBe(expected)
-    expect(xxhash3.file(TEST_FILE_PATH, undefined)).toBe(expected)
+    expect(xxhash3.file({ path: TEST_FILE_PATH })).toBe(expected)
+    expect(xxhash3.file({ path: TEST_FILE_PATH, seed: 0 })).toBe(expected)
+    expect(xxhash3.file({ path: TEST_FILE_PATH, seed: undefined })).toBe(expected)
   })
 
   test("xxhash3 with seed", () => {
-    expect(xxhash3.file(TEST_FILE_PATH, 1)).toBe(BigInt("8310716519890529791"))
+    expect(xxhash3.file({ path: TEST_FILE_PATH, seed: 1 })).toBe(BigInt("8310716519890529791"))
   })
 
   test("xxhash3_128", () => {
     const expected = BigInt("193898327962634967863812790837365759668");
 
-    expect(xxhash3_128.file(TEST_FILE_PATH)).toBe(expected)
-    expect(xxhash3_128.file(TEST_FILE_PATH, 0)).toBe(expected)
-    expect(xxhash3_128.file(TEST_FILE_PATH, undefined)).toBe(expected)
+    expect(xxhash3_128.file({ path: TEST_FILE_PATH })).toBe(expected)
+    expect(xxhash3_128.file({ path: TEST_FILE_PATH, seed: 0 })).toBe(expected)
+    expect(xxhash3_128.file({ path: TEST_FILE_PATH, seed: undefined })).toBe(expected)
   })
 
   test("xxhash3_128 with seed", () => {
-    expect(xxhash3_128.file(TEST_FILE_PATH, 1)).toBe(BigInt("132161492315031615344357334049880780287"))
+    expect(xxhash3_128.file({ path: TEST_FILE_PATH, seed: 1 })).toBe(BigInt("132161492315031615344357334049880780287"))
   });
 
   function throwsTest<F extends AnyFunction>(testName: string, hasher: F, ...args: AnyArgs<F>) {
@@ -107,19 +107,19 @@ describe("file hashing", () => {
     });
   }
 
-  function throwsInvalidTypeTest(functionName: string, hasher: (path: string, seed: number) => unknown) {
-    throwsTest(`${functionName} invalid path type`, hasher, undefined, 0);
-    throwsTest(`${functionName} invalid seed type`, hasher, "123", "123");
+  function throwsInvalidTypeTest(functionName: string, hasher: (options: FileHashingOptions<number>) => unknown) {
+    throwsTest(`${functionName} invalid path type`, hasher, { path: undefined, seed: 0 });
+    throwsTest(`${functionName} invalid seed type`, hasher, { path: "123", seed: "123" });
   }
 
   throwsInvalidTypeTest("xxhash32", xxhash32.file);
   throwsInvalidTypeTest("xxhash64", xxhash64.file);
   throwsInvalidTypeTest("xxhash3", xxhash3.file);
   throwsInvalidTypeTest("xxhash3_128", xxhash3_128.file);
-  
-  function throwsWhenNoFileTest(functionName: string, hasher: (path: string, seed: number) => unknown) {
+
+  function throwsWhenNoFileTest(functionName: string, hasher: (options: FileHashingOptions<number>) => unknown) {
     test(`${functionName} throws when file doesn't exist`, () => {
-      expect(() => hasher("./test_data/should-not-exist", 1)).toThrow()
+      expect(() => hasher({path: "./test_data/should-not-exist", seed: 1})).toThrow()
     })
   }
 

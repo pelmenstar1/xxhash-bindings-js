@@ -5,20 +5,21 @@ export declare enum FileHashingType {
   BLOCK = 1
 }
 
-type XxHash3 = {
-  oneshot(data: Uint8Array, seed?: UInt64): bigint;
-  file(path: string, seed?: UInt64, type?: FileHashingType): bigint;
+export type FileHashingOptions<S> = {
+  path: string,
+  seed?: S,
+  type?: FileHashingType
 }
 
-export declare const xxhash32: {
-  oneshot(data: Uint8Array, seed: number): number;
-  file(path: string, seed: number, type?: FileHashingType): number;
+type XxHashVariant<S, H> = {
+  oneshot(data: Uint8Array, seed?: S): H;
+  file(options: FileHashingOptions<S>): H;
 }
 
-export declare const xxhash64: {
-  oneshot(data: Uint8Array, seed: UInt64): bigint;
-  file(path: string, seed: UInt64, type?: FileHashingType): bigint;
-}
+type XxHash3 = XxHashVariant<UInt64, bigint>;
+
+export declare const xxhash32: XxHashVariant<number, number>;
+export declare const xxhash64: XxHashVariant<UInt64, bigint>;
 
 export declare const xxhash3: XxHash3;
 export declare const xxhash3_128: XxHash3;

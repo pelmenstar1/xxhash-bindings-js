@@ -9,11 +9,6 @@
 #include "platform/blockReader.h"
 #include "platform/memoryMap.h"
 
-#define CHECK_PATH(pathArg)            \
-  if (!(pathArg)->IsString()) {        \
-    THROW_INVALID_ARG_TYPE(1, string); \
-  }
-
 enum FileHashingType { MAP = 0, BLOCK = 1 };
 
 typedef std::optional<v8::Local<v8::Value>> V8HashResult;
@@ -104,7 +99,7 @@ V8HashResult FileHasher<Variant, BLOCK>::ProcessFile(
       state.Update(block.data, block.length);
     } else {
       readResult.ThrowException(isolate);
-      
+
       return {};
     }
   }
@@ -134,7 +129,7 @@ std::optional<FileHashingType> GetFileHashingType(
   return {};
 }
 
-template <int Variant, bool RequireSeed>
+template <int Variant>
 void XxHashBaseFile(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -146,9 +141,11 @@ void XxHashBaseFile(const Nan::FunctionCallbackInfo<v8::Value>& info) {
 
   auto pathArg = info[0];
 
-  CHECK_PATH(pathArg);
+  if (!pathArg->IsString()) {
+    THROW_INVALID_ARG_TYPE(1, string);
+  }
 
-  auto pathValue = pathArg->ToString(context).ToLocalChecked();
+  auto pathString = pathArg->ToString(context).ToLocalChecked();
 
   V8OptionalSeed optSeed = {};
   if (argCount >= 2) {
@@ -156,8 +153,6 @@ void XxHashBaseFile(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     CHECK_SEED_UNDEFINED(seedArg);
 
     optSeed = seedArg;
-  } else if (RequireSeed) {
-    THROW_INVALID_ARG_COUNT;
   }
 
   FileHashingType type = MAP;
@@ -183,17 +178,17 @@ void XxHashBaseFile(const Nan::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void XxHash32File(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  XxHashBaseFile<H32, true>(info);
+  XxHashBaseFile<H32>(info);
 }
 
 void XxHash64File(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  XxHashBaseFile<H64, true>(info);
+  XxHashBaseFile<H64>(info);
 }
 
 void XxHash3File(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  XxHashBaseFile<H3, false>(info);
+  XxHashBaseFile<H3>(info);
 }
 
 void XxHash3_128_File(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  XxHashBaseFile<H3_128, false>(info);
+  XxHashBaseFile<H3_128>(info);
 }

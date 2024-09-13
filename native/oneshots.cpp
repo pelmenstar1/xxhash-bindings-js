@@ -3,7 +3,7 @@
 #include "hashers.h"
 #include "helpers.h"
 
-template <int Variant, bool RequireSeed>
+template <int Variant>
 inline void XxHashBase(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
 
@@ -31,8 +31,6 @@ inline void XxHashBase(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     CHECK_SEED_UNDEFINED(seedArg);
 
     optSeed = seedArg;
-  } else if (RequireSeed) {
-    THROW_INVALID_ARG_COUNT;
   }
 
   v8::Local<v8::Value> result =
@@ -42,17 +40,17 @@ inline void XxHashBase(const Nan::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void XxHash32(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  XxHashBase<H32, true>(info);
+  XxHashBase<H32>(info);
 }
 
 void XxHash64(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  XxHashBase<H64, true>(info);
+  XxHashBase<H64>(info);
 }
 
 void XxHash3(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  XxHashBase<H3, false>(info);
+  XxHashBase<H3>(info);
 }
 
 void XxHash3_128(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  XxHashBase<H3_128, false>(info);
+  XxHashBase<H3_128>(info);
 }
