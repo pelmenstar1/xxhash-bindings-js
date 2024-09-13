@@ -11,47 +11,14 @@
 
 enum FileHashingType { MAP = 0, BLOCK = 1 };
 
+const FileHashingType DEFAULT_HASHING_TYPE = MAP;
+
 typedef std::optional<v8::Local<v8::Value>> V8HashResult;
 
-template <int Variant, int Type>
-struct FileHasher {};
-
 template <int Variant>
-struct FileHasher<Variant, MAP> {
-  static V8HashResult ProcessFile(v8::Isolate* isolate,
-                                  v8::Local<v8::String> pathValue,
-                                  V8OptionalSeed seedValue);
-};
-
-template <int Variant>
-struct FileHasher<Variant, BLOCK> {
-  static V8HashResult ProcessFile(v8::Isolate* isolate,
-                                  v8::Local<v8::String> pathValue,
-                                  V8OptionalSeed seedValue);
-};
-
-template <int Variant>
-static V8HashResult DynamicProcessFile(v8::Isolate* isolate,
-                                       v8::Local<v8::String> pathValue,
-                                       V8OptionalSeed seedValue,
-                                       FileHashingType type) {
-  switch (type) {
-    case BLOCK:
-      return FileHasher<Variant, BLOCK>::ProcessFile(isolate, pathValue,
-                                                     seedValue);
-    case MAP:
-      return FileHasher<Variant, MAP>::ProcessFile(isolate, pathValue,
-                                                   seedValue);
-    default:
-      FATAL_ERROR("Invalid processing type");
-      return {};
-  }
-}
-
-template <int Variant>
-V8HashResult FileHasher<Variant, MAP>::ProcessFile(
-    v8::Isolate* isolate, v8::Local<v8::String> pathValue,
-    V8OptionalSeed seedValue) {
+V8HashResult MapProcessFile(v8::Isolate* isolate,
+                            v8::Local<v8::String> pathValue,
+                            V8OptionalSeed seedValue) {
   MemoryMappedFile file;
   auto openResult = file.Open(isolate, pathValue);
 
@@ -67,9 +34,9 @@ V8HashResult FileHasher<Variant, MAP>::ProcessFile(
 }
 
 template <int Variant>
-V8HashResult FileHasher<Variant, BLOCK>::ProcessFile(
-    v8::Isolate* isolate, v8::Local<v8::String> pathValue,
-    V8OptionalSeed seedValue) {
+V8HashResult BlockProcessFile(v8::Isolate* isolate,
+                              v8::Local<v8::String> pathValue,
+                              V8OptionalSeed seedValue) {
   XxHashState<Variant> state = XxHasher<Variant>::CreateState(isolate);
   BlockReader reader = {};
 
@@ -107,6 +74,22 @@ V8HashResult FileHasher<Variant, BLOCK>::ProcessFile(
   return state.GetResult();
 }
 
+template <int Variant>
+static V8HashResult DynamicProcessFile(v8::Isolate* isolate,
+                                       v8::Local<v8::String> pathValue,
+                                       V8OptionalSeed seedValue,
+                                       FileHashingType type) {
+  switch (type) {
+    case BLOCK:
+      return BlockProcessFile<Variant>(isolate, pathValue, seedValue);
+    case MAP:
+      return MapProcessFile<Variant>(isolate, pathValue, seedValue);
+    default:
+      FATAL_ERROR("Invalid processing type");
+      return {};
+  }
+}
+
 std::optional<FileHashingType> GetFileHashingType(
     v8::Isolate* isolate, v8::Local<v8::Value> typeValue) {
   if (typeValue->IsNumber()) {
@@ -122,7 +105,7 @@ std::optional<FileHashingType> GetFileHashingType(
       }
     }
   } else if (typeValue->IsNullOrUndefined()) {
-    return MAP;
+    return DEFAULT_HASHING_TYPE;
   }
 
   isolate->ThrowError("Invalid file hashing type");
@@ -145,7 +128,7 @@ void XxHashBaseFile(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     THROW_INVALID_ARG_TYPE(1, string);
   }
 
-  auto pathString = pathArg->ToString(context).ToLocalChecked();
+  auto pathValue = pathArg->ToString(context).ToLocalChecked();
 
   V8OptionalSeed optSeed = {};
   if (argCount >= 2) {
@@ -155,7 +138,7 @@ void XxHashBaseFile(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     optSeed = seedArg;
   }
 
-  FileHashingType type = MAP;
+  FileHashingType type = DEFAULT_HASHING_TYPE;
   if (argCount == 3) {
     auto typeArg = info[2];
 
