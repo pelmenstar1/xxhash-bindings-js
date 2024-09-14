@@ -2,11 +2,12 @@
 
 #include "../blockReader.h"
 
-#include "../fileUtils.h"
-#include "../../helpers.h"
+#include <stdlib.h>
 
 #include <iostream>
-#include <stdlib.h>
+
+#include "../../helpers.h"
+#include "../../v8Utils.h"
 
 const size_t BUFFER_SIZE = 4096;
 
@@ -22,7 +23,10 @@ BlockReader::~BlockReader() {
 
 PlatformOperationStatus BlockReader::Open(v8::Isolate* isolate,
                                           v8::Local<v8::String> pathValue) {
-  HANDLE fileHandle = OpenFileWithV8Path(isolate, pathValue);
+  auto pathBuffer = V8StringToUtf16(isolate, pathValue);
+  HANDLE fileHandle =
+      CreateFileW((LPCWSTR)pathBuffer.get(), GENERIC_READ, FILE_SHARE_READ,
+                  NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
   CHECK_PLATFORM_ERROR(fileHandle, INVALID_HANDLE_VALUE)
 

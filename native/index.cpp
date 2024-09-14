@@ -1,6 +1,5 @@
 #include <nan.h>
-#include "oneshots.h"
-#include "fileHashing.h"
+#include "exports.h"
 #include <functional>
 
 struct ExportedFunctionToken {

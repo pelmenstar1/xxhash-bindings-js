@@ -1,7 +1,6 @@
 #ifdef unix
 
 #include "../memoryMap.h"
-#include "../fileUtils.h"
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -12,6 +11,8 @@
 #include <iostream>
 #include <memory>
 
+#include "../../v8Utils.h"
+
 class FileHandle {
  public:
   const int fd;
@@ -21,9 +22,10 @@ class FileHandle {
   ~FileHandle() { close(fd); }
 };
 
-PlatformOperationStatus MemoryMappedFile::Open(v8::Isolate* isolate,
-                                           v8::Local<v8::String> pathValue) {
-  int fd = OpenFileWithV8Path(isolate, pathValue);
+PlatformOperationStatus MemoryMappedFile::Open(
+    v8::Isolate* isolate, v8::Local<v8::String> pathValue) {
+  auto pathBuffer = V8StringToUtf8(isolate, pathValue);
+  int fd = open(pathBuffer, O_RDONLY);
   if (fd < 0) {
     return PlatformOperationStatus::Error();
   }

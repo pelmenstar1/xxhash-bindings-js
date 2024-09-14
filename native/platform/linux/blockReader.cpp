@@ -1,5 +1,5 @@
 #include "../blockReader.h"
-#include "../fileUtils.h"
+#include "../../v8Utils.h"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -18,7 +18,8 @@ BlockReader::~BlockReader() {
 }
 
 PlatformOperationStatus BlockReader::Open(v8::Isolate* isolate, v8::Local<v8::String> pathValue) {
-  int fd = OpenFileWithV8Path(isolate, pathValue);
+  auto pathBuffer = V8StringToUtf8(isolate, pathValue);
+  int fd = open(pathBuffer, O_RDONLY);
   if (fd < 0) {
     return PlatformOperationStatus::Error();
   }

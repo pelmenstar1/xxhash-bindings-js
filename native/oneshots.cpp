@@ -1,4 +1,4 @@
-#include "oneshots.h"
+#include "exports.h"
 
 #include "hashers.h"
 #include "helpers.h"
@@ -16,7 +16,7 @@ inline void XxHashBase(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   auto seedArg = info[1];
 
   if (!bufferArg->IsUint8Array()) {
-    THROW_INVALID_ARG_TYPE(1, Uint8Array);
+    THROW_INVALID_ARG_TYPE(1, "Uint8Array");
   }
 
   auto buffer = bufferArg.As<v8::Uint8Array>()->Buffer();

@@ -7,46 +7,48 @@
 
 #ifdef _WIN32
 #include <windows.h>
+
+typedef DWORD ErrorDescriptor;
+#elif defined(unix)
+typedef int ErrorDescriptor;
 #endif
 
 class PlatformError {
  private:
-#ifdef _WIN32
-  DWORD _error;
+  ErrorDescriptor _error;
 
-  PlatformError(DWORD error) : _error(error) {}
-#elif defined(unix)
-  int _error;
-
-  PlatformError(int error) : _error(error) {}
-#endif
+  PlatformError(ErrorDescriptor error) : _error(error) {
+  }
  public:
   static inline PlatformError NoError() { return {0}; }
   static PlatformError LastError();
+
+  inline bool IsActualError() {
+    return _error != 0;
+  }
 
   void ThrowException(v8::Isolate* isolate);
 };
 
 class PlatformOperationStatus {
  private:
-  bool _success;
   PlatformError _error;
 
-  PlatformOperationStatus(bool success, PlatformError error)
-      : _success(success), _error(error) {}
+  PlatformOperationStatus(PlatformError error) : _error(error) {}
 
  public:
   static inline PlatformOperationStatus Success() {
-    return {true, PlatformError::NoError()};
+    return {PlatformError::NoError()};
   }
   static PlatformOperationStatus Error() {
-    return {false, PlatformError::LastError()};
+    return {PlatformError::LastError()};
   }
 
-  inline bool IsError() { return !_success; }
+  inline bool IsError() { return _error.IsActualError(); }
+  inline bool IsSuccess() { return !IsError(); }
 
   void ThrowException(v8::Isolate* isolate) {
-    if (!_success) {
+    if (_error.IsActualError()) {
       _error.ThrowException(isolate);
     }
   }

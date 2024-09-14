@@ -1,4 +1,4 @@
-#include "fileHashing.h"
+#include "exports.h"
 
 #include <iostream>
 #include <optional>
@@ -125,7 +125,7 @@ void XxHashBaseFile(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   auto pathArg = info[0];
 
   if (!pathArg->IsString()) {
-    THROW_INVALID_ARG_TYPE(1, string);
+    THROW_INVALID_ARG_TYPE(1, "string");
   }
 
   auto pathValue = pathArg->ToString(context).ToLocalChecked();
