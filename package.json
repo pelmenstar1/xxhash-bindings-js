@@ -1,10 +1,11 @@
 {
-  "name": "xxhash",
+  "name": "xxhash-bindings",
   "version": "1.0.0",
   "type": "module",
   "description": "",
   "main": "./dist/index.js",
   "scripts": {
+    "build": "node-gyp build",
     "build:debug": "node-gyp configure --debug && node-gyp build",
     "benchmark": "tsx ./benchmark/index.ts",
     "test": "vitest"
