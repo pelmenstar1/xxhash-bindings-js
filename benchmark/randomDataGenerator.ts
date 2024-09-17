@@ -1,18 +1,13 @@
 import fs from "fs";
 import crypto from "node:crypto";
 
-const DATA_PATH = "./.data/"
-
-export async function generateRandomFileContent(fileName: string, size: number): Promise<string> {
+export async function generateRandomFileContent(filePath: string, size: number): Promise<string> {
     const BUFFER_SIZE = 4096;
   
-    await fs.promises.mkdir(DATA_PATH);
-  
-    const path = `${DATA_PATH}/${fileName}`;
     let handle: fs.promises.FileHandle | undefined;
   
     try {
-      handle = await fs.promises.open(path, "w+");
+      handle = await fs.promises.open(filePath, "w+");
   
       const buffer = Buffer.allocUnsafe(BUFFER_SIZE);
       let offset = 0;
@@ -25,7 +20,7 @@ export async function generateRandomFileContent(fileName: string, size: number):
         offset += BUFFER_SIZE;
       }
   
-      return path;
+      return filePath;
     } finally {
       await handle?.close();
     }

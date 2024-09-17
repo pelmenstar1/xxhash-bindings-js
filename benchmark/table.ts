@@ -47,7 +47,7 @@ function computeTotalTableWidth(widths: number[]) {
     result += width + 3;
   }
 
-  return result;
+  return result - 1;
 }
 
 function createTable(header: Row, content: Row[]): Table {

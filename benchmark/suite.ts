@@ -86,7 +86,7 @@ export function runBenchmark(benchmark: Benchmark): BenchmarkStats {
   }
 
   function workload(): bigint[] {
-    const ITERATION_COUNT = 4;
+    const ITERATION_COUNT = 16;
 
     const elapsedTimes: bigint[] = [];
     const { worker } = benchmark;
