@@ -1,7 +1,7 @@
 #include "exports.h"
-
 #include "hashers.h"
 #include "helpers.h"
+#include "v8HashAdapter.h"
 
 template <int Variant>
 inline void XxHashBase(const Nan::FunctionCallbackInfo<v8::Value>& info) {
@@ -23,20 +23,21 @@ inline void XxHashBase(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   uint8_t* data = (uint8_t*)buffer->Data();
   size_t length = buffer->ByteLength();
 
-  V8OptionalSeed optSeed = {};
+  XxSeed<Variant> seed = 0;
 
   if (argCount == 2) {
-    auto seedArg = info[1];
+    auto optSeed = V8HashAdapter<Variant>::GetSeed(isolate, info[1]);
+    if (!optSeed.has_value()) {
+      THROW_INVALID_ARG_TYPE(1, "number, bigint, undefined or null");
+    }
 
-    CHECK_SEED_UNDEFINED(seedArg);
-
-    optSeed = seedArg;
+    seed = optSeed.value();
   }
 
-  v8::Local<v8::Value> result =
-      XxHasher<Variant>::Process(isolate, data, length, seedArg);
+  auto result = XxHasher<Variant>::Process(isolate, data, length, seed);
 
-  info.GetReturnValue().Set(result);
+  info.GetReturnValue().Set(
+      V8HashAdapter<Variant>::TransformResult(isolate, result));
 }
 
 void XxHash32(const Nan::FunctionCallbackInfo<v8::Value>& info) {

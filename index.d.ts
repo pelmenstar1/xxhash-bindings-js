@@ -8,7 +8,9 @@ export declare enum FileHashingType {
 export type FileHashingOptions<S> = {
   path: string,
   seed?: S,
-  type?: FileHashingType
+  type?: FileHashingType,
+  offset?: UInt64,
+  length?: UInt64
 }
 
 type XxHashVariant<S, H> = {

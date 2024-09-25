@@ -1,6 +1,8 @@
 #include <v8.h>
 
 #include <cstdint>
+
+#include "files.h"
 #include "platformOperationStatus.h"
 
 #ifdef _WIN32
@@ -13,16 +15,15 @@ class MemoryMappedFile {
   MemoryMappedFile(const MemoryMappedFile& other) = delete;
   ~MemoryMappedFile();
 
-  PlatformOperationStatus Open(v8::Isolate* isolate,
-                           v8::Local<v8::String> pathValue);
+  PlatformOperationStatus Open(v8::Isolate* isolate, const FileOpenOptions& options);
 
   inline const uint8_t* GetAddress() { return _address; }
 
-  inline uint64_t GetSize() { return _size; }
+  inline size_t GetSize() { return _size; }
 
  private:
-  const uint8_t* _address;
-  uint64_t _size;
+  const uint8_t* _address = nullptr;
+  size_t _size = 0;
 
 #ifdef _WIN32
   HANDLE _fileHandle;

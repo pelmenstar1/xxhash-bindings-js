@@ -1,52 +1,53 @@
-#include <nan.h>
+#pragma once
 
 #include <cstdint>
 #include <optional>
 
+#include "v8Utils.h"
 #include "xxhash.h"
 
 enum HashVariant { H32, H64, H3, H3_128 };
 
 template <int Variant>
-struct XxHashInternalStateHolder {};
+struct MetaXxHashVariant {
+};
 
-#define INTERNAL_STATE_SPEC(type, stateType) \
-  template <>                                \
-  struct XxHashInternalStateHolder<type> {   \
-    stateType* state = nullptr;              \
+#define META(variant, state, seed, result) \
+  template <>                              \
+  struct MetaXxHashVariant<variant> {      \
+    typedef state State;                   \
+    typedef seed Seed;                     \
+    typedef result Result;                 \
   };
 
-INTERNAL_STATE_SPEC(H32, XXH32_state_t)
-INTERNAL_STATE_SPEC(H64, XXH64_state_t)
-INTERNAL_STATE_SPEC(H3, XXH3_state_t)
-INTERNAL_STATE_SPEC(H3_128, XXH3_state_t)
+META(H32, XXH32_state_t, uint32_t, uint32_t)
+META(H64, XXH64_state_t, uint64_t, uint64_t)
+META(H3, XXH3_state_t, uint64_t, uint64_t)
+META(H3_128, XXH3_state_t, uint64_t, XXH128_hash_t)
 
-#undef INTERNAL_STATE_SPEC
+#undef META
 
-typedef std::optional<v8::Local<v8::Value>> V8OptionalSeed;
+template<int Variant> using XxSeed = typename MetaXxHashVariant<Variant>::Seed;
+template<int Variant> using XxResult = typename MetaXxHashVariant<Variant>::Result;
 
 template <int Variant>
 class XxHashState {
  public:
-  XxHashState(v8::Isolate* isolate) : _isolate(isolate) {}
+  XxHashState() {}
   ~XxHashState();
 
-  bool Init(V8OptionalSeed seed);
+  bool Init(XxSeed<Variant> seed);
   void Update(const uint8_t* data, size_t length);
 
-  v8::Local<v8::Value> GetResult();
+  XxResult<Variant> GetResult();
 
  private:
-  v8::Isolate* _isolate;
-  XxHashInternalStateHolder<Variant> _stateHolder;
+  typename MetaXxHashVariant<Variant>::State* _state = nullptr;
 };
 
 template <int Variant>
 struct XxHasher {
-  static XxHashState<Variant> CreateState(v8::Isolate* isolate) {
-    return XxHashState<Variant>(isolate);
-  }
-
-  static v8::Local<v8::Value> Process(v8::Isolate* isolate, const uint8_t* data,
-                                      size_t length, V8OptionalSeed seed);
+  static XxResult<Variant> Process(
+      v8::Isolate* isolate, const uint8_t* data, size_t length,
+      XxSeed<Variant> seed);
 };

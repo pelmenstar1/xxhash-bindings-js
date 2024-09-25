@@ -17,15 +17,13 @@ class PlatformError {
  private:
   ErrorDescriptor _error;
 
-  PlatformError(ErrorDescriptor error) : _error(error) {
-  }
+  PlatformError(ErrorDescriptor error) : _error(error) {}
+
  public:
   static inline PlatformError NoError() { return {0}; }
   static PlatformError LastError();
 
-  inline bool IsActualError() {
-    return _error != 0;
-  }
+  inline bool IsActualError() { return _error != 0; }
 
   void ThrowException(v8::Isolate* isolate);
 };
@@ -53,5 +51,10 @@ class PlatformOperationStatus {
     }
   }
 };
+
+#define CHECK_PLATFORM_ERROR(expr)           \
+  if (expr) {                                \
+    return PlatformOperationStatus::Error(); \
+  }
 
 #endif

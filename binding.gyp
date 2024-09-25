@@ -9,7 +9,8 @@
       "native/oneshots.cpp",
       "native/xxhash.c",
       "native/errorMacro.cpp",
-      "native/v8Utils.cpp"
+      "native/v8Utils.cpp",
+      "native/v8HashAdapter.cpp"
     ],
     "include_dirs": [
       "<!(node -e \"require('nan')\")"

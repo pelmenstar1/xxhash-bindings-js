@@ -4,7 +4,7 @@ const addon = bindings("xxhash");
 
 function modifiedFileHasher(hasher) {
   return (options) => {
-    return hasher(options.path, options.seed, options.type);
+    return hasher(options.path, options.seed, options.type, options.offset, options.length);
   }
 }
 

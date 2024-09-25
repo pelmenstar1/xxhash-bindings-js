@@ -69,62 +69,40 @@ describe("oneshots", () => {
 describe("file hashing", () => {
   const TEST_FILE_PATH = "./test_data/image1.png";
 
-  test("xxhash32", () => {
-    expect(xxhash32.file({ path: TEST_FILE_PATH, seed: 1, type: FileHashingType.MAP })).toBe(1945663033)
-  })
-
-  test("xxhash64", () => {
-    expect(xxhash64.file({ path: TEST_FILE_PATH, seed: 1 })).toBe(BigInt("17740802669433987345"))
-  })
-
-  test("xxhash3", () => {
-    const expected = BigInt("12531405323377630900");
-
-    expect(xxhash3.file({ path: TEST_FILE_PATH })).toBe(expected)
-    expect(xxhash3.file({ path: TEST_FILE_PATH, seed: 0 })).toBe(expected)
-    expect(xxhash3.file({ path: TEST_FILE_PATH, seed: undefined })).toBe(expected)
-  })
-
-  test("xxhash3 with seed", () => {
-    expect(xxhash3.file({ path: TEST_FILE_PATH, seed: 1 })).toBe(BigInt("8310716519890529791"))
-  })
-
-  test("xxhash3_128", () => {
-    const expected = BigInt("193898327962634967863812790837365759668");
-
-    expect(xxhash3_128.file({ path: TEST_FILE_PATH })).toBe(expected)
-    expect(xxhash3_128.file({ path: TEST_FILE_PATH, seed: 0 })).toBe(expected)
-    expect(xxhash3_128.file({ path: TEST_FILE_PATH, seed: undefined })).toBe(expected)
-  })
-
-  test("xxhash3_128 with seed", () => {
-    expect(xxhash3_128.file({ path: TEST_FILE_PATH, seed: 1 })).toBe(BigInt("132161492315031615344357334049880780287"))
-  });
-
   function throwsTest<F extends AnyFunction>(testName: string, hasher: F, ...args: AnyArgs<F>) {
     test(testName, () => {
       expect(() => hideArgumentTypes(hasher, ...args)).toThrow();
     });
   }
 
-  function throwsInvalidTypeTest(functionName: string, hasher: (options: FileHashingOptions<number>) => unknown) {
-    throwsTest(`${functionName} invalid path type`, hasher, { path: undefined, seed: 0 });
-    throwsTest(`${functionName} invalid seed type`, hasher, { path: "123", seed: "123" });
+  function variantTests<T>(hasherName: string, hasher: (options: FileHashingOptions<number>) => T, seeds: [number, T][]) {
+    const types = [FileHashingType.MAP, FileHashingType.BLOCK]
+
+    for (const type of types) {
+      for (const [seed, expected] of seeds) {
+        test(`${hasherName} (seed=${seed}, type=${type})`, () => {
+          expect(hasher({ path: TEST_FILE_PATH, seed, type })).toBe(expected)
+
+          if (seed == 0) {
+            expect(hasher({ path: TEST_FILE_PATH, type})).toBe(expected);
+            expect(hasher({ path: TEST_FILE_PATH, seed: undefined, type})).toBe(expected);
+          }
+        })
+      }
+    }
+
+    throwsTest(`${hasherName} invalid path type`, hasher, { path: undefined, seed: 0 });
+    throwsTest(`${hasherName} invalid seed type`, hasher, { path: "123", seed: "123" });
+
+    for (const type of types) {
+      test(`${hasherName} throws when file doesn't exist`, () => {
+        expect(() => hasher({ path: "./test_data/should-not-exist", seed: 1, type })).toThrow()
+      })
+    }
   }
 
-  throwsInvalidTypeTest("xxhash32", xxhash32.file);
-  throwsInvalidTypeTest("xxhash64", xxhash64.file);
-  throwsInvalidTypeTest("xxhash3", xxhash3.file);
-  throwsInvalidTypeTest("xxhash3_128", xxhash3_128.file);
-
-  function throwsWhenNoFileTest(functionName: string, hasher: (options: FileHashingOptions<number>) => unknown) {
-    test(`${functionName} throws when file doesn't exist`, () => {
-      expect(() => hasher({path: "./test_data/should-not-exist", seed: 1})).toThrow()
-    })
-  }
-
-  throwsWhenNoFileTest("xxhash32", xxhash32.file);
-  throwsWhenNoFileTest("xxhash64", xxhash64.file);
-  throwsWhenNoFileTest("xxhash3", xxhash3.file);
-  throwsWhenNoFileTest("xxhash3_128", xxhash3_128.file);
-})
+  variantTests("xxhash32", xxhash32.file, [[1, 1945663033]])
+  variantTests("xxhash64", xxhash64.file, [[1, BigInt("17740802669433987345")]])
+  variantTests("xxhash3", xxhash3.file, [[0, BigInt("12531405323377630900")], [1, BigInt("8310716519890529791")]])
+  variantTests("xxhash3_128", xxhash3_128.file, [[0, BigInt("193898327962634967863812790837365759668")], [1, BigInt("132161492315031615344357334049880780287")]])
+}) 

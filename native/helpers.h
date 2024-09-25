@@ -17,8 +17,3 @@
       !(seedArg->IsNullOrUndefined())) {                      \
     THROW_INVALID_ARG_TYPE(2, "number, bigint or undefined"); \
   }
-
-#define CHECK_PLATFORM_ERROR(variable, value) \
-  if ((variable) == (value)) {                \
-    return PlatformOperationStatus::Error();  \
-  }
