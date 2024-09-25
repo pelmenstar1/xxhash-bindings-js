@@ -9,11 +9,11 @@ struct Block {
   uint8_t* data;
   uint32_t length;
 
+  Block(): data(nullptr), length(0) {}
   Block(uint8_t* data, uint32_t length) : data(data), length(length) {}
-
-  static inline Block Empty() { return Block(nullptr, 0); }
 };
 
+/*
 class ReadBlockResult {
  private:
   PlatformOperationStatus _status;
@@ -39,5 +39,6 @@ class ReadBlockResult {
     return {PlatformOperationStatus::Error(), Block::Empty()};
   }
 };
+*/
 
 #endif

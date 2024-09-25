@@ -76,8 +76,8 @@ HashResult<Variant> BlockProcessFile(
   while (true) {
     auto readResult = reader.ReadBlock();
 
-    if (readResult.IsSucess()) {
-      auto block = readResult.GetBlock();
+    if (readResult.IsSuccess()) {
+      auto block = readResult.GetValue();
       if (block.length == 0) {
         break;
       }

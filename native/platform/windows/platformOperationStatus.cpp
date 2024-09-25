@@ -2,13 +2,17 @@
 
 #include "../platformOperationStatus.h"
 
-PlatformError PlatformError::LastError() {
+PlatformOperationStatus PlatformOperationStatus::Error() {
   DWORD lastError = GetLastError();
 
-  return PlatformError(lastError);
+  return {lastError};
 }
 
-void PlatformError::ThrowException(v8::Isolate* isolate) {
+void PlatformOperationStatus::ThrowException(v8::Isolate* isolate) {
+  if (_error == 0) {
+    return;
+  }
+
   LPWSTR messageBuffer = nullptr;
   DWORD messageLength = FormatMessageW(
       FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |

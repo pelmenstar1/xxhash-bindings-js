@@ -14,7 +14,7 @@ class BlockReader {
   ~BlockReader();
 
   PlatformOperationStatus Open(v8::Isolate* isolate, const FileOpenOptions& options);
-  ReadBlockResult ReadBlock();
+  PlatformOperationResult<Block> ReadBlock();
 
  private:
   uint8_t* _buffer = nullptr;

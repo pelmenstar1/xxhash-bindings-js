@@ -58,16 +58,16 @@ PlatformOperationStatus BlockReader::Open(v8::Isolate* isolate,
   return PlatformOperationStatus::Success();
 }
 
-ReadBlockResult BlockReader::ReadBlock() {
+PlatformOperationResult<Block> BlockReader::ReadBlock() {
   DWORD bytesToRead = min(BUFFER_SIZE, _fileSize - _offset);
   DWORD bytesRead;
   bool result = ReadFile(_fileHandle, _buffer, BUFFER_SIZE, &bytesRead, NULL);
 
   if (!result) {
-    return ReadBlockResult::Error();
+    return PlatformOperationResult<Block>::Error();
   }
 
-  return ReadBlockResult::Success(_buffer, (uint32_t)bytesRead);
+  return PlatformOperationResult<Block>::Success({_buffer, (uint32_t)bytesRead});
 }
 
 #endif

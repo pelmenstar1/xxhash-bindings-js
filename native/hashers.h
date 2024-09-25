@@ -12,20 +12,34 @@ template <int Variant>
 struct MetaXxHashVariant {
 };
 
-#define META(variant, state, seed, result) \
-  template <>                              \
-  struct MetaXxHashVariant<variant> {      \
-    typedef state State;                   \
-    typedef seed Seed;                     \
-    typedef result Result;                 \
-  };
+template<>
+struct MetaXxHashVariant<H32> {
+  using State = XXH32_state_t;
+  using Seed = uint32_t;
+  using Result = uint32_t;
+};
 
-META(H32, XXH32_state_t, uint32_t, uint32_t)
-META(H64, XXH64_state_t, uint64_t, uint64_t)
-META(H3, XXH3_state_t, uint64_t, uint64_t)
-META(H3_128, XXH3_state_t, uint64_t, XXH128_hash_t)
+template<>
+struct MetaXxHashVariant<H64> {
+  using State = XXH64_state_t;
+  using Seed = uint64_t;
+  using Result = uint64_t;
+};
 
-#undef META
+template<>
+struct MetaXxHashVariant<H3> {
+  using State = XXH3_state_t;
+  using Seed = uint64_t;
+  using Result = uint64_t;
+};
+
+template<>
+struct MetaXxHashVariant<H3_128> {
+  using State = XXH3_state_t;
+  using Seed = uint64_t;
+  using Result = XXH128_hash_t;
+};
+
 
 template<int Variant> using XxSeed = typename MetaXxHashVariant<Variant>::Seed;
 template<int Variant> using XxResult = typename MetaXxHashVariant<Variant>::Result;

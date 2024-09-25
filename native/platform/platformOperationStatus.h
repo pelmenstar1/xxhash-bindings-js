@@ -13,42 +13,47 @@ typedef DWORD ErrorDescriptor;
 typedef int ErrorDescriptor;
 #endif
 
-class PlatformError {
+class PlatformOperationStatus {
  private:
   ErrorDescriptor _error;
 
-  PlatformError(ErrorDescriptor error) : _error(error) {}
+  PlatformOperationStatus(ErrorDescriptor error) : _error(error) {}
 
  public:
-  static inline PlatformError NoError() { return {0}; }
-  static PlatformError LastError();
+  static inline PlatformOperationStatus Success() {
+    return {0};
+  }
 
-  inline bool IsActualError() { return _error != 0; }
+  static PlatformOperationStatus Error();
+
+  inline bool IsError() { return _error != 0; }
+  inline bool IsSuccess() { return !IsError(); }
 
   void ThrowException(v8::Isolate* isolate);
 };
 
-class PlatformOperationStatus {
- private:
-  PlatformError _error;
+template<class T>
+class PlatformOperationResult {
+private:
+  PlatformOperationStatus _status;
+  T _value;
 
-  PlatformOperationStatus(PlatformError error) : _error(error) {}
+  PlatformOperationResult(PlatformOperationStatus status, T value) : _status(status), _value(value) {}
+public:
+  inline bool IsSuccess() { return _status.IsSuccess(); }
 
- public:
-  static inline PlatformOperationStatus Success() {
-    return {PlatformError::NoError()};
-  }
-  static PlatformOperationStatus Error() {
-    return {PlatformError::LastError()};
-  }
-
-  inline bool IsError() { return _error.IsActualError(); }
-  inline bool IsSuccess() { return !IsError(); }
+  inline T GetValue() { return _value; }
 
   void ThrowException(v8::Isolate* isolate) {
-    if (_error.IsActualError()) {
-      _error.ThrowException(isolate);
-    }
+    _status.ThrowException(isolate);
+  }
+
+  static PlatformOperationResult<T> Success(T value) {
+    return {PlatformOperationStatus::Success(), value};
+  }
+
+  static PlatformOperationResult<T> Error() {
+    return {PlatformOperationStatus::Error(), T()};
   }
 };
 
