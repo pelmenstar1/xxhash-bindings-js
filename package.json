@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node-gyp build",
     "build:debug": "node-gyp configure --debug && node-gyp build",
-    "benchmark": "tsx ./benchmark/index.ts",
+    "benchmark": "tsx ./benchmark/bench.ts",
     "test": "vitest"
   },
   "dependencies": {
@@ -17,6 +17,7 @@
     "typescript": "^5.5.4"
   },
   "devDependencies": {
+    "tinybench": "^3.0.7",
     "vitest": "^2.0.5"
   },
   "gypfile": true

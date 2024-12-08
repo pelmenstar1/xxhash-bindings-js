@@ -1,7 +1,7 @@
 import fs from "fs";
 import crypto from "node:crypto";
 
-export async function generateRandomFileContent(filePath: string, size: number): Promise<string> {
+export async function generateRandomFileContent(filePath: string, size: number): Promise<void> {
     const BUFFER_SIZE = 4096;
   
     let handle: fs.promises.FileHandle | undefined;
@@ -15,12 +15,10 @@ export async function generateRandomFileContent(filePath: string, size: number):
       while (offset < size) {
         const bytesToWrite = Math.min(BUFFER_SIZE, size - offset);
         crypto.randomFillSync(buffer, 0, bytesToWrite);
-  
+       
         fs.writeSync(handle.fd, buffer, 0, bytesToWrite, offset);
         offset += BUFFER_SIZE;
       }
-  
-      return filePath;
     } finally {
       await handle?.close();
     }
