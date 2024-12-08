@@ -8,7 +8,7 @@
     "build": "node-gyp build",
     "build:debug": "node-gyp configure --debug && node-gyp build",
     "benchmark": "tsx ./benchmark/bench.ts",
-    "test": "vitest"
+    "test": "vitest --run"
   },
   "dependencies": {
     "@types/node": "^22.5.4",

@@ -182,7 +182,7 @@ void XxHashBaseFile(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   if (argCount >= 5) {
-    auto optLength = V8GetUInt64Optional(isolate, info[4]);
+    auto optLength = V8GetUInt64Optional(isolate, info[4], SIZE_MAX);
 
     if (!optLength.has_value()) {
       THROW_INVALID_ARG_TYPE(1, "number, bigint, undefined or null");
