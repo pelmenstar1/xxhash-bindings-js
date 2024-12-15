@@ -38,6 +38,7 @@ struct FileHashingContext {
 template <int Variant>
 HashResult<Variant> MapProcessFile(const FileHashingContext<Variant>& context) {
   auto isolate = context.isolate;
+
   MemoryMappedFile file;
   auto openResult = file.Open(isolate, context.ToOpenOptions());
 
@@ -46,10 +47,16 @@ HashResult<Variant> MapProcessFile(const FileHashingContext<Variant>& context) {
     return {};
   }
 
-  const uint8_t* address = file.GetAddress();
   size_t size = file.GetSize();
+  HashResult<Variant> result = {};
 
-  return XxHasher<Variant>::Process(isolate, address, size, context.seed);
+  file.Access([&](const uint8_t* address) {
+    result = XxHasher<Variant>::Process(isolate, address, size, context.seed);
+  }, [&] {
+    isolate->ThrowError("IO error occurred while reading the file");
+  });
+
+  return result;
 }
 
 template <int Variant>

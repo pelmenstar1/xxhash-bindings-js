@@ -15,9 +15,24 @@ class MemoryMappedFile {
   MemoryMappedFile(const MemoryMappedFile& other) = delete;
   ~MemoryMappedFile();
 
-  PlatformOperationStatus Open(v8::Isolate* isolate, const FileOpenOptions& options);
+  PlatformOperationStatus Open(v8::Isolate* isolate,
+                               const FileOpenOptions& options);
 
-  inline const uint8_t* GetAddress() { return _address; }
+  template <typename Accessor, typename Handler>
+  void Access(Accessor acc, Handler handler) {
+#ifdef _WIN32
+    __try {
+      acc(_address);
+    } __except (GetExceptionCode() == EXCEPTION_IN_PAGE_ERROR || GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION
+                    ? EXCEPTION_EXECUTE_HANDLER
+                    : EXCEPTION_CONTINUE_SEARCH) {
+      handler();
+    }
+#else
+    // TODO: Add error handling 
+    acc(_address);
+#endif
+  }
 
   inline size_t GetSize() { return _size; }
 
