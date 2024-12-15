@@ -40,18 +40,12 @@ inline void XxHashBase(const Nan::FunctionCallbackInfo<v8::Value>& info) {
       V8HashAdapter<Variant>::TransformResult(isolate, result));
 }
 
-void XxHash32(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  XxHashBase<H32>(info);
-}
+#define ONESHOT_SPEC(name, variant)                             \
+  void name(const Nan::FunctionCallbackInfo<v8::Value>& info) { \
+    XxHashBase<variant>(info);                                  \
+  }
 
-void XxHash64(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  XxHashBase<H64>(info);
-}
-
-void XxHash3(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  XxHashBase<H3>(info);
-}
-
-void XxHash3_128(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  XxHashBase<H3_128>(info);
-}
+ONESHOT_SPEC(XxHash32, H32)
+ONESHOT_SPEC(XxHash64, H64)
+ONESHOT_SPEC(XxHash3, H3)
+ONESHOT_SPEC(XxHash3_128, H3_128)

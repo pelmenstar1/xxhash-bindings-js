@@ -25,7 +25,8 @@ std::unique_ptr<uint16_t[]> V8StringToUtf16(v8::Isolate* isolate,
 }
 
 std::optional<uint32_t> V8GetUInt32Optional(v8::Isolate* isolate,
-                                            v8::Local<v8::Value> value, uint32_t ifUndefined) {
+                                            v8::Local<v8::Value> value,
+                                            uint32_t ifUndefined) {
   if (value->IsNumber()) {
     return value->Uint32Value(isolate->GetCurrentContext()).ToChecked();
   }
@@ -38,7 +39,8 @@ std::optional<uint32_t> V8GetUInt32Optional(v8::Isolate* isolate,
 }
 
 std::optional<uint64_t> V8GetUInt64Optional(v8::Isolate* isolate,
-                                    v8::Local<v8::Value> value, uint64_t ifUndefined) {
+                                            v8::Local<v8::Value> value,
+                                            uint64_t ifUndefined) {
   if (value->IsNumber()) {
     return value->IntegerValue(isolate->GetCurrentContext()).ToChecked();
   }
@@ -54,16 +56,6 @@ std::optional<uint64_t> V8GetUInt64Optional(v8::Isolate* isolate,
   }
 
   return {};
-}
-
-std::optional<uint32_t> V8GetUInt32Optional(v8::Isolate* isolate,
-                                            v8::Local<v8::Value> value) {
-  return V8GetUInt32Optional(isolate, value, 0);
-}
-
-std::optional<uint64_t> V8GetUInt64Optional(v8::Isolate* isolate,
-                                            v8::Local<v8::Value> value) {
-  return V8GetUInt64Optional(isolate, value, 0);
 }
 
 v8::Local<v8::Value> V8CreateUInt128Number(v8::Isolate* isolate, uint64_t low,

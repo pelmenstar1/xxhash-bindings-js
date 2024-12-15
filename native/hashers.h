@@ -9,40 +9,41 @@
 enum HashVariant { H32, H64, H3, H3_128 };
 
 template <int Variant>
-struct MetaXxHashVariant {
-};
+struct MetaXxHashVariant {};
 
-template<>
+template <>
 struct MetaXxHashVariant<H32> {
   using State = XXH32_state_t;
   using Seed = uint32_t;
   using Result = uint32_t;
 };
 
-template<>
+template <>
 struct MetaXxHashVariant<H64> {
   using State = XXH64_state_t;
   using Seed = uint64_t;
   using Result = uint64_t;
 };
 
-template<>
+template <>
 struct MetaXxHashVariant<H3> {
   using State = XXH3_state_t;
   using Seed = uint64_t;
   using Result = uint64_t;
 };
 
-template<>
+template <>
 struct MetaXxHashVariant<H3_128> {
   using State = XXH3_state_t;
   using Seed = uint64_t;
   using Result = XXH128_hash_t;
 };
 
+template <int Variant>
+using XxSeed = typename MetaXxHashVariant<Variant>::Seed;
 
-template<int Variant> using XxSeed = typename MetaXxHashVariant<Variant>::Seed;
-template<int Variant> using XxResult = typename MetaXxHashVariant<Variant>::Result;
+template <int Variant>
+using XxResult = typename MetaXxHashVariant<Variant>::Result;
 
 template <int Variant>
 class XxHashState {
@@ -61,7 +62,6 @@ class XxHashState {
 
 template <int Variant>
 struct XxHasher {
-  static XxResult<Variant> Process(
-      v8::Isolate* isolate, const uint8_t* data, size_t length,
-      XxSeed<Variant> seed);
+  static XxResult<Variant> Process(v8::Isolate* isolate, const uint8_t* data,
+                                   size_t length, XxSeed<Variant> seed);
 };
