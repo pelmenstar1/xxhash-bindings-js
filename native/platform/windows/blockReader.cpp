@@ -9,8 +9,6 @@
 #include "../../helpers.h"
 #include "../../v8Utils.h"
 
-const size_t BUFFER_SIZE = 4096;
-
 BlockReader::~BlockReader() {
   if (_buffer != nullptr) {
     _aligned_free(_buffer);
@@ -33,24 +31,21 @@ PlatformOperationStatus BlockReader::Open(v8::Isolate* isolate,
   _fileHandle = fileHandle;
 
   size_t offset = options.offset;
-  size_t length = options.length;
-
+ 
   if (offset != 0) {
     LARGE_INTEGER largeOffset;
     largeOffset.QuadPart = offset;
 
     CHECK_PLATFORM_ERROR(!SetFilePointerEx(fileHandle, largeOffset, NULL, FILE_BEGIN));
-    _offset = offset;
   }
 
-  LARGE_INTEGER fileSize;
-  CHECK_PLATFORM_ERROR(!GetFileSizeEx(_fileHandle, &fileSize));
-  _fileSize = min(length, (size_t)fileSize.QuadPart);
+  _size = options.length;
+  _offset = 0;
 
   SYSTEM_INFO sysInfo;
   GetSystemInfo(&sysInfo);
 
-  _buffer = (uint8_t*)_aligned_malloc(BUFFER_SIZE, sysInfo.dwPageSize);
+  _buffer = (uint8_t*)_aligned_malloc(sysInfo.dwPageSize, sysInfo.dwPageSize);
   _bufferSize = sysInfo.dwPageSize;
 
   CHECK_PLATFORM_ERROR(_buffer == nullptr);
@@ -59,13 +54,15 @@ PlatformOperationStatus BlockReader::Open(v8::Isolate* isolate,
 }
 
 PlatformOperationResult<Block> BlockReader::ReadBlock() {
-  DWORD bytesToRead = min(BUFFER_SIZE, _fileSize - _offset);
+  DWORD bytesToRead = min(_bufferSize, _size - _offset);
   DWORD bytesRead;
-  bool result = ReadFile(_fileHandle, _buffer, BUFFER_SIZE, &bytesRead, NULL);
+  bool result = ReadFile(_fileHandle, _buffer, bytesToRead, &bytesRead, NULL);
 
   if (!result) {
     return PlatformOperationResult<Block>::Error();
   }
+
+  _offset += bytesRead;
 
   return PlatformOperationResult<Block>::Success({_buffer, (uint32_t)bytesRead});
 }

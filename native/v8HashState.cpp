@@ -46,7 +46,8 @@ void V8HashStateObject<Variant>::New(
 
   if (argCount > 0) {
     auto optSeed = V8HashAdapter<Variant>::GetSeed(isolate, info[0]);
-    if (!optSeed) {
+
+    if (!optSeed.has_value()) {
       THROW_INVALID_ARG_TYPE(1, "number or bigint");
     }
 
@@ -81,11 +82,9 @@ void V8HashStateObject<Variant>::Update(
     THROW_INVALID_ARG_TYPE(1, "Uint8Array");
   }
 
-  auto buffer = bufferArg.As<v8::Uint8Array>()->Buffer();
-  uint8_t* data = (uint8_t*)buffer->Data();
-  size_t length = buffer->ByteLength();
+  auto buffer = V8GetBackingStorage(bufferArg.As<v8::Uint8Array>());
 
-  state.Update(data, length);
+  state.Update(buffer.data, buffer.length);
 }
 
 template <int Variant>
@@ -101,20 +100,23 @@ void V8HashStateObject<Variant>::GetResult(
 }
 
 template <int Variant>
-v8::Local<v8::Object> V8HashStateObject<Variant>::NewInstance(
-    v8::Local<v8::Value> seed) {
+v8::MaybeLocal<v8::Object> V8HashStateObject<Variant>::NewInstance(
+    v8::Local<v8::Context> context, v8::Local<v8::Value> seed) {
   Nan::EscapableHandleScope scope;
 
   const unsigned argc = 1;
   v8::Local<v8::Value> argv[argc] = {seed};
 
   v8::Local<v8::Function> cons = Nan::New<v8::Function>(_constructor);
-  v8::Local<v8::Context> context =
-      v8::Isolate::GetCurrent()->GetCurrentContext();
-  v8::Local<v8::Object> instance =
-      cons->NewInstance(context, argc, argv).ToLocalChecked();
 
-  return scope.Escape(instance);
+  auto instance =
+      cons->NewInstance(context, argc, argv);
+
+  if (!instance.IsEmpty()) {
+    return scope.Escape(instance.ToLocalChecked());
+  }
+
+  return v8::MaybeLocal<v8::Object>();
 }
 
 template class V8HashStateObject<H32>;

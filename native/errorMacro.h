@@ -1,7 +1,7 @@
 #ifndef _ERROR_MACRO
 #define _ERROR_MACRO
 
-#include <iostream>
+#include <cstdint>
 
 #define FATAL_ERROR(msg) FatalError(msg, __FILE__, __LINE__)
 

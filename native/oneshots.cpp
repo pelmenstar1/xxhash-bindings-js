@@ -13,15 +13,11 @@ inline void XxHashBase(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   auto bufferArg = info[0];
-  auto seedArg = info[1];
-
   if (!bufferArg->IsUint8Array()) {
     THROW_INVALID_ARG_TYPE(1, "Uint8Array");
   }
 
-  auto buffer = bufferArg.As<v8::Uint8Array>()->Buffer();
-  uint8_t* data = (uint8_t*)buffer->Data();
-  size_t length = buffer->ByteLength();
+  auto buffer = V8GetBackingStorage(bufferArg.As<v8::Uint8Array>());
 
   XxSeed<Variant> seed = 0;
 
@@ -34,7 +30,7 @@ inline void XxHashBase(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     seed = optSeed.value();
   }
 
-  auto result = XxHasher<Variant>::Process(isolate, data, length, seed);
+  auto result = XxHasher<Variant>::Process(isolate, buffer.data, buffer.length, seed);
 
   info.GetReturnValue().Set(
       V8HashAdapter<Variant>::TransformResult(isolate, result));

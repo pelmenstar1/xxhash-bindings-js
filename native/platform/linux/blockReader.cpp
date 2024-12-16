@@ -31,35 +31,34 @@ PlatformOperationStatus BlockReader::Open(v8::Isolate* isolate,
 
   if (offset != 0) {
     CHECK_PLATFORM_ERROR(lseek(fd, offset, SEEK_SET) < 0)
-    _offset = offset;
   }
 
   struct stat fileStat;
   CHECK_PLATFORM_ERROR(fstat(fd, &fileStat) < 0)
 
-  if (length == SIZE_MAX) {
-    length = fileStat.st_size;
-  } else {
-    length = std::min(length, (size_t)fileStat.st_size);
-  }
+  length = std::min(length, (size_t)fileStat.st_size);
 
   int pageSize = getpagesize();
 
   _buffer = (uint8_t*)aligned_alloc(pageSize, fileStat.st_blksize);
   _bufferSize = fileStat.st_blksize;
-  _fileSize = length;
+
+  _offset = 0;
+  _size = length;
 
   CHECK_PLATFORM_ERROR(_buffer == nullptr)
 
   return PlatformOperationStatus::Success();
 }
 
-ReadBlockResult BlockReader::ReadBlock() {
-  size_t readSize = std::min(_fileSize - _offset, _bufferSize);
+PlatformOperationResult<Block> BlockReader::ReadBlock() {
+  size_t readSize = std::min(_size - _offset, _bufferSize);
   ssize_t result = read(_fd, _buffer, readSize);
   if (result < 0) {
-    return ReadBlockResult::Error();
+    return PlatformOperationResult<Block>::Error();
   }
 
-  return ReadBlockResult::Success(_buffer, (uint32_t)result);
+  _offset += result;
+
+  return PlatformOperationResult<Block>::Success({_buffer, (uint32_t)result});
 }

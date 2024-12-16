@@ -21,7 +21,7 @@ class BlockReader {
   size_t _bufferSize = 0;
 
   size_t _offset = 0;
-  size_t _fileSize = 0; 
+  size_t _size = 0; 
 
 #ifdef _WIN32
   HANDLE _fileHandle = INVALID_HANDLE_VALUE;

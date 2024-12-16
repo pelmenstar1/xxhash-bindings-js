@@ -24,11 +24,24 @@ std::unique_ptr<uint16_t[]> V8StringToUtf16(v8::Isolate* isolate,
   return buffer;
 }
 
+RawSizedArray V8GetBackingStorage(v8::Local<v8::Uint8Array> array) {
+  uint8_t* data = (uint8_t*)array->Buffer()->Data();
+  size_t offset = array->ByteOffset();
+  size_t length = array->ByteLength();
+
+  return { data + offset, length };
+}
+
+template <typename T>
+std::optional<T> MaybeToOptional(v8::Maybe<T> input) {
+  return input.IsNothing() ? std::optional<T>() : input.ToChecked();
+}
+
 std::optional<uint32_t> V8GetUInt32Optional(v8::Isolate* isolate,
                                             v8::Local<v8::Value> value,
                                             uint32_t ifUndefined) {
   if (value->IsNumber()) {
-    return value->Uint32Value(isolate->GetCurrentContext()).ToChecked();
+    return MaybeToOptional(value->Uint32Value(isolate->GetCurrentContext()));
   }
 
   if (value->IsNullOrUndefined()) {
@@ -42,13 +55,14 @@ std::optional<uint64_t> V8GetUInt64Optional(v8::Isolate* isolate,
                                             v8::Local<v8::Value> value,
                                             uint64_t ifUndefined) {
   if (value->IsNumber()) {
-    return value->IntegerValue(isolate->GetCurrentContext()).ToChecked();
+    return MaybeToOptional(value->IntegerValue(isolate->GetCurrentContext()));
   }
 
   if (value->IsBigInt()) {
-    return value->ToBigInt(isolate->GetCurrentContext())
-        .ToLocalChecked()
-        ->Uint64Value();
+    auto bigint = value->ToBigInt(isolate->GetCurrentContext());
+
+    return bigint.IsEmpty() ? std::optional<uint64_t>()
+                            : bigint.ToLocalChecked()->Uint64Value();
   }
 
   if (value->IsNullOrUndefined()) {

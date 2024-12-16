@@ -35,25 +35,28 @@ PlatformOperationStatus MemoryMappedFile::Open(v8::Isolate* isolate,
   size_t offset = options.offset;
   size_t length = options.length;
 
-  if (length == SIZE_MAX) {
-    struct stat statInfo;
-    CHECK_PLATFORM_ERROR(fstat(fd, &statInfo) < 0)
+  struct stat statInfo;
+  CHECK_PLATFORM_ERROR(fstat(fd, &statInfo) < 0)
 
-    length = (ssize_t)statInfo.st_size;
-
-    if (length == 0) {
-      // mmap can fail if length == 0.
-      // For us, it's ok, MemoryMappedFile will return nullptr pointer and zero length
-      // in which case this memory should not be used.
-      return PlatformOperationStatus::Success();
-    }
+  size_t fileSize = statInfo.st_size;
+  if (length == 0) {
+    // mmap can fail if length == 0.
+    // For us, it's ok, MemoryMappedFile will return nullptr pointer and zero
+    // length in which case this memory should not be used.
+    return PlatformOperationStatus::Success();
   }
 
-  void* mapAddress = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, offset);
+  void* mapAddress = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
   CHECK_PLATFORM_ERROR(mapAddress == MAP_FAILED)
 
   _address = (const uint8_t*)mapAddress;
-  _size = length;
+  _address += offset;
+
+   _size = std::min(options.length, fileSize);
+
+  if (offset + _size > fileSize) {
+    _size = (offset >= fileSize) ? 0 : (fileSize - offset);
+  }
 
   return PlatformOperationStatus::Success();
 }

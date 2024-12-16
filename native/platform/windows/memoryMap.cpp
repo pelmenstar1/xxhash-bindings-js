@@ -2,8 +2,8 @@
 
 #include "../memoryMap.h"
 
-#include <memory>
 #include <iostream>
+#include <memory>
 
 #include "../../helpers.h"
 #include "../../v8Utils.h"
@@ -23,17 +23,21 @@ PlatformOperationStatus MemoryMappedFile::Open(v8::Isolate* isolate,
   CHECK_PLATFORM_ERROR(_fileMapping == NULL)
 
   size_t offset = options.offset;
-  DWORD offsetLow = offset & 0xFFFFFFFF;
-  DWORD offsetHigh = offset >> 32;
 
   LARGE_INTEGER fileSize;
   CHECK_PLATFORM_ERROR(!GetFileSizeEx(_fileHandle, &fileSize));
-  _size = min(options.length, (size_t)fileSize.QuadPart);
+  size_t totalFileSize = (size_t)fileSize.QuadPart;
 
-  _address = (const uint8_t*)MapViewOfFile(_fileMapping, FILE_MAP_READ,
-                                           offsetHigh, offsetLow, _size);
-  
+  _size = min(options.length, totalFileSize);
+
+  _address = (const uint8_t*)MapViewOfFile(_fileMapping, FILE_MAP_READ, 0, 0, 0);
   CHECK_PLATFORM_ERROR(_address == NULL)
+
+  _address += offset;
+
+  if (offset + _size > totalFileSize) {
+    _size = (offset >= totalFileSize) ? 0 : (totalFileSize - offset);
+  }
 
   return PlatformOperationStatus::Success();
 }

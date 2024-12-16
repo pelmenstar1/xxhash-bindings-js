@@ -7,7 +7,7 @@
 template <int Variant>
 class V8HashStateObject : public Nan::ObjectWrap {
  public:
-  static v8::Local<v8::Object> NewInstance(v8::Local<v8::Value> seed);
+  static v8::MaybeLocal<v8::Object> NewInstance(v8::Local<v8::Context> context, v8::Local<v8::Value> seed);
 
   static void Init();
 

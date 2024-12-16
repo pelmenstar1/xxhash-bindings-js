@@ -28,8 +28,10 @@ void PlatformOperationStatus::ThrowException(v8::Isolate* isolate) {
   auto messageValue =
       v8::String::NewFromTwoByte(isolate, (uint16_t*)messageBuffer,
                                  v8::NewStringType::kNormal, messageLength);
-
-  isolate->ThrowError(messageValue.ToLocalChecked());
+  
+  if (!messageValue.IsEmpty()) {
+    isolate->ThrowError(messageValue.ToLocalChecked());
+  }
 
   LocalFree(messageBuffer);
 } 

@@ -21,7 +21,10 @@ void PlatformOperationStatus::ThrowException(v8::Isolate* isolate) {
   }
 
   auto messageValue = v8::String::NewFromUtf8(isolate, errorDesc);
-  isolate->ThrowError(messageValue.ToLocalChecked());
+
+  if (!messageValue.IsEmpty()) {
+    isolate->ThrowError(messageValue.ToLocalChecked());
+  }
 }
 
 #endif
