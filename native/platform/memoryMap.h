@@ -41,7 +41,7 @@ class MemoryMappedFile {
   size_t _size = 0;
 
 #ifdef _WIN32
-  HANDLE _fileHandle;
-  HANDLE _fileMapping;
+  HANDLE _fileHandle = INVALID_HANDLE_VALUE;
+  HANDLE _fileMapping = INVALID_HANDLE_VALUE;
 #endif
 };

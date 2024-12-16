@@ -10,7 +10,7 @@ void CreateXxHashState(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(result);
 }
 
-#define STATE_VARIANT(name, variant)                            \
+#define STATE_SPEC(name, variant)                               \
   void name(const Nan::FunctionCallbackInfo<v8::Value>& info) { \
     CreateXxHashState<variant>(info);                           \
   }
