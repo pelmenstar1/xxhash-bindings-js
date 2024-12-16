@@ -49,6 +49,13 @@ template <int Variant>
 class XxHashState {
  public:
   XxHashState() {}
+  XxHashState(const XxHashState<Variant>& source) = delete;
+
+  XxHashState(XxHashState<Variant>&& source) {
+    _state = source._state;
+    source._state = nullptr;
+  }
+
   ~XxHashState();
 
   bool Init(XxSeed<Variant> seed);

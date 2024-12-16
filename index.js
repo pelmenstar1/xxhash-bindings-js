@@ -8,10 +8,11 @@ function modifiedFileHasher(hasher) {
   }
 }
 
-function xxHashVariant(oneshot, file) {
+function xxHashVariant(oneshot, file, createState) {
   return {
     oneshot,
-    file: modifiedFileHasher(file)
+    createState,
+    file: modifiedFileHasher(file),
   }
 }
 
@@ -20,7 +21,7 @@ export const FileHashingType = {
   BLOCK: 1
 }
 
-export const xxhash32 = xxHashVariant(addon.xxhash32, addon.xxhash32_file);
-export const xxhash64 = xxHashVariant(addon.xxhash64, addon.xxhash64_file);
-export const xxhash3 = xxHashVariant(addon.xxhash3, addon.xxhash3_file);
-export const xxhash3_128 = xxHashVariant(addon.xxhash3_128, addon.xxhash3_128_file);
+export const xxhash32 = xxHashVariant(addon.xxhash32, addon.xxhash32_file, addon.xxhash32_createState);
+export const xxhash64 = xxHashVariant(addon.xxhash64, addon.xxhash64_file, addon.xxhash64_createState);
+export const xxhash3 = xxHashVariant(addon.xxhash3, addon.xxhash3_file, addon.xxhash3_createState);
+export const xxhash3_128 = xxHashVariant(addon.xxhash3_128, addon.xxhash3_128_file, addon.xxhash3_128_createState);

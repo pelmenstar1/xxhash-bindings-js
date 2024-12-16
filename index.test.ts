@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { xxhash32, xxhash64, xxhash3, xxhash3_128, FileHashingType, FileHashingOptions } from "./index.js";
+import { xxhash32, xxhash64, xxhash3, xxhash3_128, FileHashingType, FileHashingOptions, XxHashState } from "./index.js";
 
 type AnyArray<Arr extends any[]> = {
   [Index in keyof Arr]: any;
@@ -84,8 +84,8 @@ describe("file hashing", () => {
           expect(hasher({ path: TEST_FILE_PATH, seed, type })).toBe(expected)
 
           if (seed == 0) {
-            expect(hasher({ path: TEST_FILE_PATH, type})).toBe(expected);
-            expect(hasher({ path: TEST_FILE_PATH, seed: undefined, type})).toBe(expected);
+            expect(hasher({ path: TEST_FILE_PATH, type })).toBe(expected);
+            expect(hasher({ path: TEST_FILE_PATH, seed: undefined, type })).toBe(expected);
           }
         })
       }
@@ -105,4 +105,30 @@ describe("file hashing", () => {
   variantTests("xxhash64", xxhash64.file, [[1, BigInt("17740802669433987345")]])
   variantTests("xxhash3", xxhash3.file, [[0, BigInt("12531405323377630900")], [1, BigInt("8310716519890529791")]])
   variantTests("xxhash3_128", xxhash3_128.file, [[0, BigInt("193898327962634967863812790837365759668")], [1, BigInt("132161492315031615344357334049880780287")]])
-}) 
+})
+
+describe("state hashing", () => {
+  const testData = Uint8Array.from([97, 98, 99, 100]);
+
+  function variantTests<S extends number | bigint, T extends number | bigint>(
+    hasherName: string, createState: (seed?: S) => XxHashState<T>, input: [S | undefined, Uint8Array[], T][]) {
+    for (const [seed, arrays, expected] of input) {
+      test(`${hasherName} state hashing`, () => {
+        const state = createState(seed);
+
+        for (const array of arrays) {
+          state.update(array);
+        }
+
+        const actual = state.result();
+
+        expect(actual).toEqual(expected);
+      });
+    }
+  }
+
+  variantTests('xxhash32', xxhash32.createState, [[0, [testData], 0xa3643705]]);
+  variantTests('xxhash64', xxhash64.createState, [[1, [testData], BigInt("0xf5dcbd6dee3c9553")]]);
+  variantTests('xxhash3', xxhash3.createState, [[undefined, [testData], BigInt("7248448420886124688")]]);
+  variantTests('xxhash3_128', xxhash3_128.createState, [[0, [testData], BigInt("187978674736816916650311503294403523901")]]);
+});

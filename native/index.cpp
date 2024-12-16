@@ -1,6 +1,7 @@
 #include <nan.h>
 #include "exports.h"
 #include <functional>
+#include "v8HashState.h"
 
 struct ExportedFunctionToken {
   const char* name;
@@ -11,6 +12,8 @@ void Init(v8::Local<v8::Object> exports) {
   v8::Local<v8::Context> context =
       exports->GetCreationContext().ToLocalChecked();
 
+  V8HashStateObjectManager::Init();
+
   ExportedFunctionToken exportedFunctions[] = {
     { "xxhash32", XxHash32 },
     { "xxhash64", XxHash64 },
@@ -19,7 +22,11 @@ void Init(v8::Local<v8::Object> exports) {
     { "xxhash32_file", XxHash32File },
     { "xxhash64_file", XxHash64File },
     { "xxhash3_file", XxHash3File },
-    { "xxhash3_128_file", XxHash3_128_File }
+    { "xxhash3_128_file", XxHash3_128_File },
+    { "xxhash32_createState", CreateXxHash32State },
+    { "xxhash64_createState", CreateXxHash64State },
+    { "xxhash3_createState", CreateXxHash3State },
+    { "xxhash3_128_createState", CreateXxHash3_128_State },
   };
 
   for (auto& token : exportedFunctions) {

@@ -10,7 +10,9 @@
       "native/xxhash.c",
       "native/errorMacro.cpp",
       "native/v8Utils.cpp",
-      "native/v8HashAdapter.cpp"
+      "native/v8HashAdapter.cpp",
+      "native/v8HashState.cpp",
+      "native/stateHashing.cpp"
     ],
     "include_dirs": [
       "<!(node -e \"require('nan')\")"
