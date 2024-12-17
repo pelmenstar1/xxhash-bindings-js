@@ -2,10 +2,6 @@
 
 #include "../blockReader.h"
 
-#include <stdlib.h>
-
-#include <iostream>
-
 #include "../../helpers.h"
 #include "../../v8Utils.h"
 
@@ -42,11 +38,8 @@ PlatformOperationStatus BlockReader::Open(v8::Isolate* isolate,
   _size = options.length;
   _offset = 0;
 
-  SYSTEM_INFO sysInfo;
-  GetSystemInfo(&sysInfo);
-
-  _buffer = (uint8_t*)_aligned_malloc(sysInfo.dwPageSize, sysInfo.dwPageSize);
-  _bufferSize = sysInfo.dwPageSize;
+  _bufferSize = min(4096, _size);
+  _buffer = (uint8_t*)_aligned_malloc(_bufferSize, 64);
 
   CHECK_PLATFORM_ERROR(_buffer == nullptr);
 

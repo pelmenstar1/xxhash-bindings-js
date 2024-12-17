@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <cmath>
 
 #include "../../v8Utils.h"
 
@@ -36,12 +37,8 @@ PlatformOperationStatus BlockReader::Open(v8::Isolate* isolate,
   struct stat fileStat;
   CHECK_PLATFORM_ERROR(fstat(fd, &fileStat) < 0)
 
-  length = std::min(length, (size_t)fileStat.st_size);
-
-  int pageSize = getpagesize();
-
-  _buffer = (uint8_t*)aligned_alloc(pageSize, fileStat.st_blksize);
-  _bufferSize = fileStat.st_blksize;
+  _bufferSize = std::min((size_t)fileStat.st_blksize, length);
+  _buffer = (uint8_t*)malloc(_bufferSize);
 
   _offset = 0;
   _size = length;
