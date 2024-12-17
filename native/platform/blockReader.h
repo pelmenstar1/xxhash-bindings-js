@@ -1,7 +1,6 @@
 #include <cstdint>
 
-#include "block.h"
-#include "files.h"
+#include "types.h"
 #include "platformOperationStatus.h"
 
 #ifdef _WIN32
@@ -26,6 +25,6 @@ class BlockReader {
 #ifdef _WIN32
   HANDLE _fileHandle = INVALID_HANDLE_VALUE;
 #elif defined(unix)
-  int _fd = -1;
+  int _fileHandle = -1;
 #endif
 };

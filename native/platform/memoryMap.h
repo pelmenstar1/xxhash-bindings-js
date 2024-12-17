@@ -2,8 +2,8 @@
 
 #include <cstdint>
 
-#include "files.h"
 #include "platformOperationStatus.h"
+#include "types.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -23,13 +23,14 @@ class MemoryMappedFile {
 #ifdef _WIN32
     __try {
       acc(_address);
-    } __except (GetExceptionCode() == EXCEPTION_IN_PAGE_ERROR || GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION
+    } __except (GetExceptionCode() == EXCEPTION_IN_PAGE_ERROR ||
+                        GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION
                     ? EXCEPTION_EXECUTE_HANDLER
                     : EXCEPTION_CONTINUE_SEARCH) {
       handler();
     }
 #else
-    // TODO: Add error handling 
+    // TODO: Add error handling
     acc(_address);
 #endif
   }
