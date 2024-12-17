@@ -17,22 +17,26 @@ PlatformOperationStatus MemoryMappedFile::Open(v8::Isolate* isolate,
 
   CHECK_PLATFORM_ERROR(_fileHandle == INVALID_HANDLE_VALUE)
 
-  _fileMapping =
-      CreateFileMappingW(_fileHandle, NULL, PAGE_READONLY, 0, 0, NULL);
-
-  CHECK_PLATFORM_ERROR(_fileMapping == NULL)
-
-  size_t offset = options.offset;
-
   LARGE_INTEGER fileSize;
-  CHECK_PLATFORM_ERROR(!GetFileSizeEx(_fileHandle, &fileSize));
+  CHECK_PLATFORM_ERROR(!GetFileSizeEx(_fileHandle, &fileSize))
+
   size_t totalFileSize = (size_t)fileSize.QuadPart;
 
   _size = min(options.length, totalFileSize);
 
-  _address = (const uint8_t*)MapViewOfFile(_fileMapping, FILE_MAP_READ, 0, 0, 0);
+  if (_size == 0) {
+    return PlatformOperationStatus::Success();
+  }
+
+  _fileMapping =
+      CreateFileMappingW(_fileHandle, NULL, PAGE_READONLY, 0, 0, NULL);
+  CHECK_PLATFORM_ERROR(_fileMapping == NULL)
+
+  _address =
+      (const uint8_t*)MapViewOfFile(_fileMapping, FILE_MAP_READ, 0, 0, 0);
   CHECK_PLATFORM_ERROR(_address == NULL)
 
+  size_t offset = options.offset;
   _address += offset;
 
   if (offset + _size > totalFileSize) {

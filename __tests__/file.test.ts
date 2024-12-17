@@ -1,5 +1,6 @@
 import { test, expect } from 'vitest';
 import { FileHashingType, xxhash32, xxhash64, xxhash3, xxhash3_128 } from '..';
+import fs from 'fs';
 
 const TEST_FILE_PATH = './test_data/image1.png';
 const hashTypes = [FileHashingType.MAP, FileHashingType.BLOCK];
@@ -97,6 +98,39 @@ test.each([
   for (const type of hashTypes) {
     expect(hasher({ path: TEST_FILE_PATH, seed: 1, type })).toBe(expected);
   }
+});
+
+test.each([
+  [xxhash32.file, 46947589],
+  [xxhash64.file, BigInt('17241709254077376921')],
+  [xxhash3.file, BigInt('3244421341483603138')],
+  [xxhash3_128.file, BigInt('204254712233039002205064565430793619839')],
+])('empty file no seed', (hasher, expected) => {
+  for (const type of hashTypes) {
+    expect(hasher({ path: './test_data/emptyfile', type })).toBe(expected);
+  }
+});
+
+test.each([
+  [xxhash32.file, 3068971186],
+  [xxhash64.file, BigInt('13237225503670494420')],
+  [xxhash3.file, BigInt('7335560060985733464')],
+  [xxhash3_128.file, BigInt('296734076633237196744344171427223105880')],
+])('one byte file no seed', (hasher, expected) => {
+  for (const type of hashTypes) {
+    expect(hasher({ path: './test_data/onebyte', type })).toBe(expected);
+  }
+});
+
+test.runIf(fs.existsSync('/dev/zero')).each([
+  [xxhash32.file, 593485017],
+  [xxhash64.file, BigInt('8040990501003754519')],
+  [xxhash3.file, BigInt('665452966430363425')],
+  [xxhash3_128.file, BigInt('281489807592584962896215940306331225889')],
+])('/dev/zero test', (hasher, expected) => {
+  expect(
+    hasher({ path: '/dev/zero', type: FileHashingType.BLOCK, length: 128 }),
+  ).toBe(expected);
 });
 
 const hashers = [

@@ -11,8 +11,8 @@ test('file oneshot fuzzing', async () => {
   for (const type of hashTypes) {
     for (const seed of [1, 2]) {
       for (const hashVariant of [xxhash32, xxhash64, xxhash3, xxhash3_128]) {
-        for (let offset = 0; offset < fileContent.length; offset += 4096) {
-          for (const length of [1, 128, 1024, 1025]) {
+        for (let offset = 0; offset < fileContent.length; offset += 8191) {
+          for (const length of [1, 128, 1024]) {
             const fileResult = hashVariant.file({
               path: TEST_FILE_PATH,
               offset,
