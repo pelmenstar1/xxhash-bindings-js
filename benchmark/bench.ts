@@ -1,4 +1,4 @@
-import { FileHashingOptions, FileHashingType, xxhash3 } from '..';
+import { FileHashingOptions, xxhash3 } from '..';
 
 import { Bench } from 'tinybench';
 
@@ -11,12 +11,13 @@ const DATA_FILE_PATH = `./.data/${DATA_FILE_NAME}`;
 const mapOptions: FileHashingOptions<number> = {
   path: DATA_FILE_PATH,
   seed: 1,
+  preferMap: true,
 };
 
 const blockOptions: FileHashingOptions<number> = {
   path: DATA_FILE_PATH,
   seed: 1,
-  type: FileHashingType.BLOCK,
+  preferMap: false,
 };
 
 async function main() {
