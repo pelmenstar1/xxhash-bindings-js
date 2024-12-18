@@ -91,11 +91,12 @@ HashResult<Variant> MapProcessFile(const FileHashingContext<Variant>& context) {
   size_t size = file.GetSize();
   HashResult<Variant> result = {};
 
-  file.Access([&](const uint8_t* address) {
-    result = XxHasher<Variant>::Process(isolate, address, size, context.seed);
-  }, [&] {
-    isolate->ThrowError("IO error occurred while reading the file");
-  });
+  file.Access(
+      [&](const uint8_t* address) {
+        result =
+            XxHasher<Variant>::Process(isolate, address, size, context.seed);
+      },
+      [&] { isolate->ThrowError("IO error occurred while reading the file"); });
 
   return result;
 }
@@ -103,11 +104,12 @@ HashResult<Variant> MapProcessFile(const FileHashingContext<Variant>& context) {
 template <int Variant>
 static HashResult<Variant> DynamicProcessFile(
     const FileHashingContext<Variant>& context, bool preferMap) {
-  return preferMap ? MapProcessFile<Variant>(context) :  BlockProcessFile<Variant>(context);
+  return preferMap ? MapProcessFile<Variant>(context)
+                   : BlockProcessFile<Variant>(context);
 }
 
 template <int Variant>
-void XxHashBaseFile(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+void FileHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   int argCount = info.Length();
@@ -180,12 +182,4 @@ void XxHashBaseFile(const Nan::FunctionCallbackInfo<v8::Value>& info) {
       V8HashAdapter<Variant>::TransformResult(isolate, result.value()));
 }
 
-#define FILE_SPEC(name, variant)                                \
-  void name(const Nan::FunctionCallbackInfo<v8::Value>& info) { \
-    XxHashBaseFile<variant>(info);                              \
-  }
-
-FILE_SPEC(XxHash32File, H32)
-FILE_SPEC(XxHash64File, H64)
-FILE_SPEC(XxHash3File, H3)
-FILE_SPEC(XxHash3_128_File, H3_128)
+INSTANTIATE_HASH_FUNCTION(FileHash)

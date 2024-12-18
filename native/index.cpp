@@ -8,6 +8,14 @@ struct ExportedFunctionToken {
   Nan::FunctionCallback function;
 };
 
+#define CONCAT(a, b) a # b
+
+#define FUNCTION_SET(suffix, function) \
+  { "xxhash32_" # suffix, function<H32> }, \
+  { "xxhash64_" # suffix, function<H64> }, \
+  { "xxhash3_" # suffix, function<H3> }, \
+  { "xxhash3_128_" # suffix, function<H3_128> } \
+
 void Init(v8::Local<v8::Object> exports) {
   v8::Local<v8::Context> context =
       exports->GetCreationContext().ToLocalChecked();
@@ -15,18 +23,9 @@ void Init(v8::Local<v8::Object> exports) {
   V8HashStateObjectManager::Init();
 
   ExportedFunctionToken exportedFunctions[] = {
-    { "xxhash32", XxHash32 },
-    { "xxhash64", XxHash64 },
-    { "xxhash3", XxHash3 },
-    { "xxhash3_128", XxHash3_128 },
-    { "xxhash32_file", XxHash32File },
-    { "xxhash64_file", XxHash64File },
-    { "xxhash3_file", XxHash3File },
-    { "xxhash3_128_file", XxHash3_128_File },
-    { "xxhash32_createState", CreateXxHash32State },
-    { "xxhash64_createState", CreateXxHash64State },
-    { "xxhash3_createState", CreateXxHash3State },
-    { "xxhash3_128_createState", CreateXxHash3_128_State },
+    FUNCTION_SET(oneshot, OneshotHash),
+    FUNCTION_SET(file, FileHash),
+    FUNCTION_SET(createState, CreateHashState),
   };
 
   for (auto& token : exportedFunctions) {

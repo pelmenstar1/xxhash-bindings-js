@@ -7,13 +7,11 @@
                       " is " expectedType);                    \
   return
 
-#define CHECK_SEED(seedArg)                               \
-  if (!(seedArg)->IsNumber() && !(seedArg)->IsBigInt()) { \
-    THROW_INVALID_ARG_TYPE(2, "number or bigint");        \
-  }
+#define _INSTANTIATE_HASH_FUNCTION(name, variant) \
+  template void name<variant>(const Nan::FunctionCallbackInfo<v8::Value>& info);
 
-#define CHECK_SEED_UNDEFINED(seedArg)                         \
-  if (!(seedArg)->IsNumber() && !(seedArg)->IsBigInt() &&     \
-      !(seedArg->IsNullOrUndefined())) {                      \
-    THROW_INVALID_ARG_TYPE(2, "number, bigint or undefined"); \
-  }
+#define INSTANTIATE_HASH_FUNCTION(name) \
+  _INSTANTIATE_HASH_FUNCTION(name, H32) \
+  _INSTANTIATE_HASH_FUNCTION(name, H64) \
+  _INSTANTIATE_HASH_FUNCTION(name, H3)  \
+  _INSTANTIATE_HASH_FUNCTION(name, H3_128)

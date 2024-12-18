@@ -35,7 +35,6 @@ template <int Variant>
 void V8HashStateObject<Variant>::New(
     const Nan::FunctionCallbackInfo<v8::Value>& info) {
   auto isolate = info.GetIsolate();
-  auto context = isolate->GetCurrentContext();
 
   int argCount = info.Length();
   if (argCount != 1) {

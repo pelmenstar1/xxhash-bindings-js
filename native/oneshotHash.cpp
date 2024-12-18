@@ -3,8 +3,8 @@
 #include "helpers.h"
 #include "v8HashAdapter.h"
 
-template <int Variant>
-inline void XxHashBase(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+template<int Variant>
+void OneshotHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
 
   int argCount = info.Length();
@@ -36,12 +36,4 @@ inline void XxHashBase(const Nan::FunctionCallbackInfo<v8::Value>& info) {
       V8HashAdapter<Variant>::TransformResult(isolate, result));
 }
 
-#define ONESHOT_SPEC(name, variant)                             \
-  void name(const Nan::FunctionCallbackInfo<v8::Value>& info) { \
-    XxHashBase<variant>(info);                                  \
-  }
-
-ONESHOT_SPEC(XxHash32, H32)
-ONESHOT_SPEC(XxHash64, H64)
-ONESHOT_SPEC(XxHash3, H3)
-ONESHOT_SPEC(XxHash3_128, H3_128)
+INSTANTIATE_HASH_FUNCTION(OneshotHash)
