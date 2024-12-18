@@ -9,14 +9,44 @@
 #include <windows.h>
 #endif
 
+class MemoryMapOpenStatus {
+ public:
+  static MemoryMapOpenStatus Success() {
+    return {PlatformOperationStatus::Success(), false};
+  }
+
+  static MemoryMapOpenStatus Error() {
+    return {PlatformOperationStatus::Error(), false};
+  }
+
+  static MemoryMapOpenStatus Incompatible() {
+    return {PlatformOperationStatus::Success(), true};
+  }
+
+  bool IsSuccess() { return _opStatus.IsSuccess() && !_incompatible; }
+
+  bool IsError() { return _opStatus.IsError(); }
+
+  bool IsIncompatible() { return _incompatible; }
+
+  void ThrowException(v8::Isolate* isolate) { return _opStatus.ThrowException(isolate); }
+
+ private:
+  MemoryMapOpenStatus(PlatformOperationStatus opStatus, bool incompatible)
+      : _opStatus(opStatus), _incompatible(incompatible) {}
+
+  PlatformOperationStatus _opStatus;
+  bool _incompatible;
+};
+
 class MemoryMappedFile {
  public:
   MemoryMappedFile() {}
   MemoryMappedFile(const MemoryMappedFile& other) = delete;
   ~MemoryMappedFile();
 
-  PlatformOperationStatus Open(v8::Isolate* isolate,
-                               const FileOpenOptions& options);
+  MemoryMapOpenStatus Open(v8::Isolate* isolate,
+                           const FileOpenOptions& options);
 
   template <typename Accessor, typename Handler>
   void Access(Accessor acc, Handler handler) {

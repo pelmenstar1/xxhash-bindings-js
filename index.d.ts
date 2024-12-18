@@ -1,19 +1,14 @@
 type UInt64 = number | bigint;
 
-export declare enum FileHashingType {
-  MAP = 0,
-  BLOCK = 1,
-}
-
 export type FileHashingOptions<S> = {
   path: string;
   seed?: S;
-  type?: FileHashingType;
   offset?: UInt64;
   length?: UInt64;
+  preferMap?: boolean;
 };
 
-type XxHashVariant<S, H extends number | bigint> = {
+type XxHashVariant<S, H extends UInt64> = {
   oneshot(data: Uint8Array, seed?: S): H;
   file(options: FileHashingOptions<S>): H;
 
@@ -22,7 +17,7 @@ type XxHashVariant<S, H extends number | bigint> = {
 
 type XxHash3 = XxHashVariant<UInt64, bigint>;
 
-export type XxHashState<R extends number | bigint> = {
+export type XxHashState<R extends UInt64> = {
   update(data: Uint8Array): void;
 
   result(): R;

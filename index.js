@@ -7,7 +7,7 @@ function modifiedFileHasher(hasher) {
     return hasher(
       options.path,
       options.seed,
-      options.type,
+      options.preferMap,
       options.offset,
       options.length,
     );
@@ -21,11 +21,6 @@ function xxHashVariant(oneshot, file, createState) {
     file: modifiedFileHasher(file),
   };
 }
-
-export const FileHashingType = {
-  MAP: 0,
-  BLOCK: 1,
-};
 
 export const xxhash32 = xxHashVariant(
   addon.xxhash32,

@@ -1,14 +1,13 @@
 import { test, expect } from 'vitest';
-import { xxhash32, xxhash64, xxhash3, xxhash3_128, FileHashingType } from '..';
+import { xxhash32, xxhash64, xxhash3, xxhash3_128 } from '..';
 import fs from 'fs';
 
 const TEST_FILE_PATH = './test_data/image1.png';
-const hashTypes = [FileHashingType.MAP, FileHashingType.BLOCK];
 
 test('file oneshot fuzzing', async () => {
   const fileContent = await fs.promises.readFile(TEST_FILE_PATH);
 
-  for (const type of hashTypes) {
+  for (const preferMap of [false, true]) {
     for (const seed of [1, 2]) {
       for (const hashVariant of [xxhash32, xxhash64, xxhash3, xxhash3_128]) {
         for (let offset = 0; offset < fileContent.length; offset += 8191) {
@@ -17,7 +16,7 @@ test('file oneshot fuzzing', async () => {
               path: TEST_FILE_PATH,
               offset,
               length,
-              type,
+              preferMap,
               seed,
             });
 
@@ -48,8 +47,12 @@ test('file oneshot state fuzzing', async () => {
 
       const stateHash = state.result();
 
-      for (const type of hashTypes) {
-        const fileHash = hashVariant.file({ path: TEST_FILE_PATH, seed, type });
+      for (const preferMap of [false, true]) {
+        const fileHash = hashVariant.file({
+          path: TEST_FILE_PATH,
+          seed,
+          preferMap,
+        });
 
         expect(oneshotHash).toBe(fileHash);
         expect(fileHash).toBe(stateHash);

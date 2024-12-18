@@ -9,10 +9,6 @@
 #include "platform/memoryMap.h"
 #include "v8HashAdapter.h"
 
-enum FileHashingType { MAP = 0, BLOCK = 1 };
-
-const FileHashingType DEFAULT_HASHING_TYPE = MAP;
-
 template <int Variant>
 using HashResult = std::optional<XxResult<Variant>>;
 
@@ -34,30 +30,6 @@ struct FileHashingContext {
 
   FileOpenOptions ToOpenOptions() const { return {path, offset, length}; }
 };
-
-template <int Variant>
-HashResult<Variant> MapProcessFile(const FileHashingContext<Variant>& context) {
-  auto isolate = context.isolate;
-
-  MemoryMappedFile file;
-  auto openResult = file.Open(isolate, context.ToOpenOptions());
-
-  if (openResult.IsError()) {
-    openResult.ThrowException(isolate);
-    return {};
-  }
-
-  size_t size = file.GetSize();
-  HashResult<Variant> result = {};
-
-  file.Access([&](const uint8_t* address) {
-    result = XxHasher<Variant>::Process(isolate, address, size, context.seed);
-  }, [&] {
-    isolate->ThrowError("IO error occurred while reading the file");
-  });
-
-  return result;
-}
 
 template <int Variant>
 HashResult<Variant> BlockProcessFile(
@@ -101,38 +73,37 @@ HashResult<Variant> BlockProcessFile(
 }
 
 template <int Variant>
-static HashResult<Variant> DynamicProcessFile(
-    FileHashingType type, const FileHashingContext<Variant>& context) {
-  switch (type) {
-    case BLOCK:
-      return BlockProcessFile<Variant>(context);
-    case MAP:
-      return MapProcessFile<Variant>(context);
-    default:
-      FATAL_ERROR("Invalid processing type");
-      return {};
+HashResult<Variant> MapProcessFile(const FileHashingContext<Variant>& context) {
+  auto isolate = context.isolate;
+
+  MemoryMappedFile file;
+  auto openResult = file.Open(isolate, context.ToOpenOptions());
+
+  if (openResult.IsIncompatible()) {
+    return BlockProcessFile(context);
   }
+
+  if (openResult.IsError()) {
+    openResult.ThrowException(isolate);
+    return {};
+  }
+
+  size_t size = file.GetSize();
+  HashResult<Variant> result = {};
+
+  file.Access([&](const uint8_t* address) {
+    result = XxHasher<Variant>::Process(isolate, address, size, context.seed);
+  }, [&] {
+    isolate->ThrowError("IO error occurred while reading the file");
+  });
+
+  return result;
 }
 
-std::optional<FileHashingType> GetFileHashingType(
-    v8::Isolate* isolate, v8::Local<v8::Value> typeValue) {
-  if (typeValue->IsNumber()) {
-    auto intValueMaybe = typeValue->Int32Value(isolate->GetCurrentContext());
-
-    if (intValueMaybe.IsJust()) {
-      auto value = intValueMaybe.FromJust();
-
-      switch (value) {
-        case MAP:
-        case BLOCK:
-          return (FileHashingType)value;
-      }
-    }
-  } else if (typeValue->IsNullOrUndefined()) {
-    return DEFAULT_HASHING_TYPE;
-  }
-
-  return {};
+template <int Variant>
+static HashResult<Variant> DynamicProcessFile(
+    const FileHashingContext<Variant>& context, bool preferMap) {
+  return preferMap ? MapProcessFile<Variant>(context) :  BlockProcessFile<Variant>(context);
 }
 
 template <int Variant>
@@ -163,16 +134,16 @@ void XxHashBaseFile(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     seed = optSeed.value();
   }
 
-  FileHashingType type = DEFAULT_HASHING_TYPE;
+  bool preferMap = true;
   if (argCount >= 3) {
-    auto optType = GetFileHashingType(isolate, info[2]);
-
-    if (!optType.has_value()) {
-      Nan::ThrowTypeError("Invalid mapping type");
-      return;
+    auto preferMapArg = info[2];
+    if (preferMapArg->IsUndefined()) {
+      preferMap = false;
+    } else if (preferMapArg->IsBoolean()) {
+      preferMap = preferMapArg->BooleanValue(isolate);
+    } else {
+      THROW_INVALID_ARG_TYPE(2, "boolean or undefined");
     }
-
-    type = optType.value();
   }
 
   size_t offset = 0;
@@ -182,7 +153,7 @@ void XxHashBaseFile(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     auto optOffset = V8GetUInt64Optional(isolate, info[3]);
 
     if (!optOffset.has_value()) {
-      THROW_INVALID_ARG_TYPE(1, "number, bigint, undefined or null");
+      THROW_INVALID_ARG_TYPE(3, "number, bigint, undefined or null");
     }
 
     offset = (size_t)optOffset.value();
@@ -192,15 +163,15 @@ void XxHashBaseFile(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     auto optLength = V8GetUInt64Optional(isolate, info[4], SIZE_MAX);
 
     if (!optLength.has_value()) {
-      THROW_INVALID_ARG_TYPE(1, "number, bigint, undefined or null");
+      THROW_INVALID_ARG_TYPE(4, "number, bigint, undefined or null");
     }
 
     length = (size_t)optLength.value();
   }
 
   auto result = DynamicProcessFile<Variant>(
-      type,
-      FileHashingContext<Variant>(isolate, pathValue, offset, length, seed));
+      FileHashingContext<Variant>(isolate, pathValue, offset, length, seed),
+      preferMap);
   if (!result.has_value()) {
     return;
   }

@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <sys/types.h>
 #include <unistd.h>
 #endif
@@ -27,7 +28,9 @@ class FileHandle {
 };
 #endif
 
-PlatformOperationStatus MemoryMappedFile::Open(v8::Isolate* isolate,
+#define CHECK_ERROR(cond) if (cond) { return MemoryMapOpenStatus::Error(); }
+
+MemoryMapOpenStatus MemoryMappedFile::Open(v8::Isolate* isolate,
                                                const FileOpenOptions& options) {
   size_t offset = options.offset;
   size_t length = options.length;
@@ -38,50 +41,54 @@ PlatformOperationStatus MemoryMappedFile::Open(v8::Isolate* isolate,
       CreateFileW((LPCWSTR)pathBuffer.get(), GENERIC_READ, FILE_SHARE_READ,
                   NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
-  CHECK_PLATFORM_ERROR(_fileHandle == INVALID_HANDLE_VALUE)
+  CHECK_ERROR(_fileHandle == INVALID_HANDLE_VALUE)
 
   LARGE_INTEGER largeFileSize;
-  CHECK_PLATFORM_ERROR(!GetFileSizeEx(_fileHandle, &largeFileSize))
+  CHECK_ERROR(!GetFileSizeEx(_fileHandle, &largeFileSize))
 
   size_t fileSize = (size_t)largeFileSize.QuadPart;
-
-  _size = std::min(options.length, fileSize);
+  _size = std::min(length, fileSize);
 
   if (_size == 0) {
-    return PlatformOperationStatus::Success();
+    return MemoryMapOpenStatus::Success();
   }
 
   _fileMapping =
       CreateFileMappingW(_fileHandle, NULL, PAGE_READONLY, 0, 0, NULL);
-  CHECK_PLATFORM_ERROR(_fileMapping == NULL)
+  CHECK_ERROR(_fileMapping == NULL)
 
   void* mapAddress = MapViewOfFile(_fileMapping, FILE_MAP_READ, 0, 0, 0);
 
-  CHECK_PLATFORM_ERROR(mapAddress == NULL)
+  CHECK_ERROR(mapAddress == NULL)
 #else
   auto pathBuffer = V8StringToUtf8(isolate, options.path);
 
   int fd = open(pathBuffer.get(), O_RDONLY);
-  CHECK_PLATFORM_ERROR(fd < 0)
+  CHECK_ERROR(fd < 0)
 
   FileHandle handle(fd);
 
   struct stat statInfo;
-  CHECK_PLATFORM_ERROR(fstat(fd, &statInfo) < 0)
-  size_t fileSize = (size_t)statInfo.st_size;
+  CHECK_ERROR(fstat(fd, &statInfo) < 0)
 
-  _size = std::min(options.length, fileSize);
+  if (!S_ISREG(statInfo.st_mode)) {
+    // Avoid using mmap on non-regular files.
+    return MemoryMapOpenStatus::Incompatible();
+  }
+
+  size_t fileSize = (size_t)statInfo.st_size;
+  _size = std::min(length, fileSize);
 
   if (_size == 0) {
-    // mmap can fail if length == 0.
+    // mmap can fail if fileSize == 0.
     // For us, it's ok, MemoryMappedFile will return nullptr pointer and zero
     // length in which case this memory should not be used.
-    return PlatformOperationStatus::Success();
+    return MemoryMapOpenStatus::Success();
   }
 
   void* mapAddress = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
 
-  CHECK_PLATFORM_ERROR(mapAddress == MAP_FAILED)
+  CHECK_ERROR(mapAddress == MAP_FAILED)
 #endif
   _address = (const uint8_t*)mapAddress;
   _address += offset;
@@ -90,7 +97,7 @@ PlatformOperationStatus MemoryMappedFile::Open(v8::Isolate* isolate,
     _size = (offset >= fileSize) ? 0 : (fileSize - offset);
   }
 
-  return PlatformOperationStatus::Success();
+  return MemoryMapOpenStatus::Success();
 }
 
 MemoryMappedFile::~MemoryMappedFile() {

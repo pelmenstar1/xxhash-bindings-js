@@ -1,9 +1,10 @@
 import { test, expect } from 'vitest';
-import { FileHashingType, xxhash32, xxhash64, xxhash3, xxhash3_128 } from '..';
+import { xxhash32, xxhash64, xxhash3, xxhash3_128 } from '..';
 import fs from 'fs';
 
 const TEST_FILE_PATH = './test_data/image1.png';
-const hashTypes = [FileHashingType.MAP, FileHashingType.BLOCK];
+
+const preferMapValues = [undefined, false, true];
 
 test.each([
   [xxhash32.file, 52811677],
@@ -11,11 +12,13 @@ test.each([
   [xxhash3.file, BigInt('12531405323377630900')],
   [xxhash3_128.file, BigInt('193898327962634967863812790837365759668')],
 ])('no seed', (hasher, expected) => {
-  for (const type of hashTypes) {
+  for (const preferMap of preferMapValues) {
+    const baseOptions = { path: TEST_FILE_PATH, preferMap };
+
     for (const options of [
-      { path: TEST_FILE_PATH, seed: 0, type },
-      { path: TEST_FILE_PATH, type },
-      { path: TEST_FILE_PATH, seed: undefined, type },
+      baseOptions,
+      { ...baseOptions, seed: 0 },
+      { ...baseOptions, seed: undefined },
     ]) {
       expect(hasher(options)).toBe(expected);
     }
@@ -66,10 +69,10 @@ test.each([
     BigInt('193898327962634967863812790837365759668'),
   ],
 ])('file part no seed', (hasher, offset, length, expected) => {
-  for (const type of hashTypes) {
+  for (const preferMap of preferMapValues) {
     const baseOptions = {
       path: TEST_FILE_PATH,
-      type,
+      preferMap,
       offset,
       length,
     };
@@ -81,10 +84,7 @@ test.each([
     ]) {
       const actual = hasher(options);
 
-      expect(
-        actual,
-        `type: ${type}; offset: ${offset}; length: ${length}`,
-      ).toBe(expected);
+      expect(actual).toBe(expected);
     }
   }
 });
@@ -95,8 +95,8 @@ test.each([
   [xxhash3.file, BigInt('8310716519890529791')],
   [xxhash3_128.file, BigInt('132161492315031615344357334049880780287')],
 ])('with seed', (hasher, expected) => {
-  for (const type of hashTypes) {
-    expect(hasher({ path: TEST_FILE_PATH, seed: 1, type })).toBe(expected);
+  for (const preferMap of preferMapValues) {
+    expect(hasher({ path: TEST_FILE_PATH, seed: 1, preferMap })).toBe(expected);
   }
 });
 
@@ -106,8 +106,8 @@ test.each([
   [xxhash3.file, BigInt('3244421341483603138')],
   [xxhash3_128.file, BigInt('204254712233039002205064565430793619839')],
 ])('empty file no seed', (hasher, expected) => {
-  for (const type of hashTypes) {
-    expect(hasher({ path: './test_data/emptyfile', type })).toBe(expected);
+  for (const preferMap of preferMapValues) {
+    expect(hasher({ path: './test_data/emptyfile', preferMap })).toBe(expected);
   }
 });
 
@@ -117,8 +117,8 @@ test.each([
   [xxhash3.file, BigInt('7335560060985733464')],
   [xxhash3_128.file, BigInt('296734076633237196744344171427223105880')],
 ])('one byte file no seed', (hasher, expected) => {
-  for (const type of hashTypes) {
-    expect(hasher({ path: './test_data/onebyte', type })).toBe(expected);
+  for (const preferMap of preferMapValues) {
+    expect(hasher({ path: './test_data/onebyte', preferMap })).toBe(expected);
   }
 });
 
@@ -128,9 +128,11 @@ test.runIf(fs.existsSync('/dev/zero')).each([
   [xxhash3.file, BigInt('665452966430363425')],
   [xxhash3_128.file, BigInt('281489807592584962896215940306331225889')],
 ])('/dev/zero test', (hasher, expected) => {
-  expect(
-    hasher({ path: '/dev/zero', type: FileHashingType.BLOCK, length: 128 }),
-  ).toBe(expected);
+  for (const preferMap of preferMapValues) {
+    expect(hasher({ path: '/dev/zero', preferMap, length: 128 })).toBe(
+      expected,
+    );
+  }
 });
 
 const hashers = [
@@ -150,9 +152,13 @@ test.each(hashers)('throws on invalid seed', (hasher) => {
   ).toThrowError();
 });
 
-test.each(hashers)('throws on invalid type', (hasher) => {
+test.each(hashers)('throws on invalid preferMap', (hasher) => {
   expect(() =>
-    hasher({ path: TEST_FILE_PATH, seed: 1, type: 100 as FileHashingType }),
+    hasher({
+      path: TEST_FILE_PATH,
+      seed: 1,
+      preferMap: 100 as unknown as boolean,
+    }),
   ).toThrowError();
 });
 
