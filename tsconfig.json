@@ -2,7 +2,8 @@
     "compilerOptions": {
       "module": "Preserve",
       "target": "ES5",
-      "moduleResolution": "Bundler",
+      "moduleResolution": "bundler",
+      "esModuleInterop": true,
       "declaration": true,
       "outDir": "./dist"
     },
@@ -11,6 +12,7 @@
     ],
     "exclude": [
       "__tests__/**",
-      "benchmark/**",
+      "./dist/**/*",
+      "benchmark/**/*",
     ]
 }

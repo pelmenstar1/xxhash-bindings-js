@@ -1,5 +1,3 @@
-import bindings from 'bindings';
-
 type UInt64 = number | bigint;
 
 export type FileHashingOptions<S> = {
@@ -31,7 +29,13 @@ export type XxHashState<R extends UInt64> = {
   result(): R;
 };
 
-const addon = bindings('xxhash');
+let addon: any;
+
+try {
+  addon = require('./build/Release/xxhash.node');
+} catch {
+  addon = require('./build/Debug/xxhash.node');
+}
 
 function modifiedFileHasher<S, H extends UInt64>(
   hasher: NativeFileHasher<S, H>,

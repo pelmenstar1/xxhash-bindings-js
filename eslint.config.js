@@ -3,11 +3,19 @@ import pluginJs from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import eslintConfigPrettier from 'eslint-plugin-prettier/recommended';
 
-/** @type {import('eslint').Linter.Config[]} */
+/** @type {import('eslint').Linter.Config[]}  */
 export default [
-  { files: ['**/*.{js,mjs,cjs,ts}'] },
+  {
+    ignores: ['.yarn/*', 'dist/*', '.pnp.cjs', '.pnp.loader.mjs'],
+  },
   { languageOptions: { globals: globals.node } },
-  pluginJs.configs.recommended,
+  { ...pluginJs.configs.recommended, ignores: ['**/*.{ts,cts}'] },
   eslintConfigPrettier,
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.strict.map((config) => ({
+    ...config,
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  })),
 ];

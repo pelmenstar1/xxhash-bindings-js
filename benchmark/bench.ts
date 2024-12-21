@@ -1,4 +1,4 @@
-import { FileHashingOptions, xxhash3 } from '..';
+import { FileHashingOptions, xxhash3 } from '../index';
 
 import { Bench } from 'tinybench';
 

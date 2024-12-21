@@ -1,7 +1,7 @@
 {
   "name": "xxhash-bindings",
   "version": "1.0.0",
-  "type": "module",
+  "type": "commonjs",
   "description": "",
   "main": "./dist/index.js",
   "scripts": {
@@ -12,21 +12,23 @@
     "test": "vitest --run"
   },
   "dependencies": {
-    "bindings": "^1.5.0",
-    "nan": "^2.20.0"
+    "nan": "^2.22.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
-    "@types/node": "^22.5.4",
+    "@types/node": "^22.10.2",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
     "globals": "^15.13.0",
+    "node-gyp": "^11.0.0",
     "prettier": "^3.4.2",
     "tinybench": "^3.0.7",
+    "tsx": "^4.19.2",
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.18.0",
     "vitest": "^2.0.5"
   },
-  "gypfile": true
+  "gypfile": true,
+  "packageManager": "yarn@4.5.3"
 }
