@@ -10,6 +10,7 @@
       "**/*"
     ],
     "exclude": [
-      "**/*.test.ts"
+      "__tests__/**",
+      "benchmark/**",
     ]
 }
