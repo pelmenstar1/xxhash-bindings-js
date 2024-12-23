@@ -8,8 +8,6 @@ struct ExportedFunctionToken {
   Nan::FunctionCallback function;
 };
 
-#define CONCAT(a, b) a # b
-
 #define FUNCTION_SET(suffix, function) \
   { "xxhash32_" # suffix, function<H32> }, \
   { "xxhash64_" # suffix, function<H64> }, \
@@ -24,8 +22,11 @@ void Init(v8::Local<v8::Object> exports) {
 
   ExportedFunctionToken exportedFunctions[] = {
     FUNCTION_SET(oneshot, OneshotHash),
-    FUNCTION_SET(file, FileHash),
     FUNCTION_SET(createState, CreateHashState),
+
+    #ifndef XXHASH_BINDINGS_MIN
+    FUNCTION_SET(file, FileHash),
+    #endif
   };
 
   for (auto& token : exportedFunctions) {

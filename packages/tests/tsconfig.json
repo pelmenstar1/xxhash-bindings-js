@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "module": "Preserve",
+    "target": "ES5",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true
+  },
+}

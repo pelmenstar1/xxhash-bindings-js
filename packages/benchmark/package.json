@@ -1,0 +1,14 @@
+{
+  "name": "xxhash-bindings-benchmark",
+  "type": "module",
+  "dependencies": {
+    "tinybench": "^3.0.7",
+    "tsx": "^4.19.2",
+    "xxhash-bindings-allnative": "workspace:^",
+    "xxhash-bindings-min": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2"
+  },
+  "packageManager": "yarn@4.5.3"
+}

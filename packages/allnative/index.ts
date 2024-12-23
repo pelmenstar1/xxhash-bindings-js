@@ -1,3 +1,5 @@
+import { createRequire } from 'module';
+
 type UInt64 = number | bigint;
 
 export type FileHashingOptions<S> = {
@@ -8,7 +10,7 @@ export type FileHashingOptions<S> = {
   preferMap?: boolean;
 };
 
-type XxHashVariant<S, H extends UInt64> = {
+export type XxHashVariant<S, H extends UInt64> = {
   oneshot(data: Uint8Array, seed?: S): H;
   file(options: FileHashingOptions<S>): H;
 
@@ -28,14 +30,6 @@ export type XxHashState<R extends UInt64> = {
 
   result(): R;
 };
-
-let addon: any;
-
-try {
-  addon = require('./build/Release/xxhash.node');
-} catch {
-  addon = require('./build/Debug/xxhash.node');
-}
 
 function modifiedFileHasher<S, H extends UInt64>(
   hasher: NativeFileHasher<S, H>,
@@ -63,6 +57,15 @@ function xxHashVariant<S, H extends UInt64>(
   };
 }
 
+let addon: any;
+const require = createRequire(import.meta.url);
+
+try {
+  addon = require('./build/Release/xxhash-allnative.node');
+} catch {
+  addon = require('./build/Debug/xxhash-allnative.node');
+}
+
 export const xxhash32 = xxHashVariant<number, number>(
   addon.xxhash32_oneshot,
   addon.xxhash32_file,
@@ -86,3 +89,5 @@ export const xxhash3_128 = xxHashVariant<UInt64, bigint>(
   addon.xxhash3_128_file,
   addon.xxhash3_128_createState,
 );
+
+export default { xxhash32, xxhash64, xxhash3, xxhash3_128 };

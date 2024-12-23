@@ -6,7 +6,13 @@ import eslintConfigPrettier from 'eslint-plugin-prettier/recommended';
 /** @type {import('eslint').Linter.Config[]}  */
 export default [
   {
-    ignores: ['.yarn/*', 'dist/*', '.pnp.cjs', '.pnp.loader.mjs'],
+    ignores: [
+      '.yarn/*',
+      '**/dist/*',
+      '**/build/*',
+      '.pnp.cjs',
+      '.pnp.loader.mjs',
+    ],
   },
   { languageOptions: { globals: globals.node } },
   { ...pluginJs.configs.recommended, ignores: ['**/*.{ts,cts}'] },
