@@ -35,18 +35,16 @@ BlockReader BlockReader::Open(v8::Isolate* isolate,
 
 #ifdef _WIN32
   auto pathBuffer = V8StringToUtf16(isolate, options.path);
-  FileHandle handle = FileHandle(
-      CreateFileW((LPCWSTR)pathBuffer.get(), GENERIC_READ, FILE_SHARE_READ,
-                  NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
+  FileHandle handle = FileHandle::OpenRead((LPCWSTR)pathBuffer.get());
 
-  CHECK_PLATFORM_ERROR(handle.fd == INVALID_HANDLE_VALUE)
+  CHECK_PLATFORM_ERROR(handle.IsInvalid());
 
   if (offset != 0) {
     LARGE_INTEGER largeOffset;
     largeOffset.QuadPart = offset;
 
     CHECK_PLATFORM_ERROR(
-        !SetFilePointerEx(handle.fd, largeOffset, NULL, FILE_BEGIN));
+        !SetFilePointerEx(handle, largeOffset, NULL, FILE_BEGIN));
   }
 
   auto bufferSize = std::min((size_t)4096, length);
@@ -54,15 +52,15 @@ BlockReader BlockReader::Open(v8::Isolate* isolate,
 #else
   auto pathBuffer = V8StringToUtf8(isolate, options.path);
 
-  FileHandle handle = FileHandle(open(pathBuffer.get(), O_RDONLY));
-  CHECK_PLATFORM_ERROR(handle.fd < 0)
+  FileHandle handle = FileHandle::OpenRead(pathBuffer.get());
+  CHECK_PLATFORM_ERROR(handle.IsInvalid())
 
   if (offset != 0) {
-    CHECK_PLATFORM_ERROR(lseek(handle.fd, offset, SEEK_SET) < 0)
+    CHECK_PLATFORM_ERROR(lseek(handle, offset, SEEK_SET) < 0)
   }
 
   struct stat fileStat;
-  CHECK_PLATFORM_ERROR(fstat(handle.fd, &fileStat) < 0)
+  CHECK_PLATFORM_ERROR(fstat(handle, &fileStat) < 0)
 
   auto bufferSize = std::min((size_t)fileStat.st_blksize, length);
   auto buffer = (uint8_t*)malloc(bufferSize);
@@ -79,13 +77,13 @@ Block BlockReader::ReadBlock() {
 #ifdef _WIN32
   DWORD bytesRead;
   bool result =
-      ReadFile(_handle.fd, _buffer, (DWORD)bytesToRead, &bytesRead, NULL);
+      ReadFile(_handle, _buffer, (DWORD)bytesToRead, &bytesRead, NULL);
 
   if (!result) {
     ThrowPlatformException();
   }
 #else
-  ssize_t bytesRead = read(_handle.fd, _buffer, bytesToRead);
+  ssize_t bytesRead = read(_handle, _buffer, bytesToRead);
   if (bytesRead < 0) {
     ThrowPlatformException();
   }

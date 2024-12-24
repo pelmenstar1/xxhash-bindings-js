@@ -11,9 +11,6 @@
 #include "v8ObjectParser.h"
 
 template <int Variant>
-using HashResult = std::optional<XxResult<Variant>>;
-
-template <int Variant>
 struct FileHashingContext {
   v8::Isolate* isolate;
   v8::Local<v8::String> path;
@@ -125,7 +122,6 @@ void FileHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     throw std::runtime_error("Wrong number of arguments");
   }
 
-  auto optionsArg = info[0];
   auto hashingContext =
       GetHashingContextFromV8Options<Variant>(context, info[0]);
 

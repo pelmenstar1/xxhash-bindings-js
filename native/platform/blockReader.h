@@ -24,11 +24,11 @@ class BlockReader {
         _offset(0),
         _size(size) {}
 
+  FileHandle _handle;
+
   uint8_t* _buffer;
   size_t _bufferSize;
 
   size_t _offset;
   size_t _size;
-
-  FileHandle _handle;
 };

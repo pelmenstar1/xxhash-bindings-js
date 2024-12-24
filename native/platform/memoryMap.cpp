@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <memory>
+#include <utility>
 
 #include "../helpers.h"
 #include "../v8Utils.h"
@@ -15,8 +16,6 @@
 #include <unistd.h>
 #endif
 
-#include "handle.h"
-
 #include "platformError.h"
 
 #undef min
@@ -28,14 +27,12 @@ bool MemoryMappedFile::Open(v8::Isolate* isolate,
 
 #ifdef _WIN32
   auto pathBuffer = V8StringToUtf16(isolate, options.path);
-  _fileHandle =
-      CreateFileW((LPCWSTR)pathBuffer.get(), GENERIC_READ, FILE_SHARE_READ,
-                  NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
-  CHECK_PLATFORM_ERROR(_fileHandle == INVALID_HANDLE_VALUE)
+  _fileHandle = std::move(FileHandle::OpenRead((LPCWSTR)pathBuffer.get()));
+  CHECK_PLATFORM_ERROR(_fileHandle.IsInvalid())
 
   LARGE_INTEGER largeFileSize;
-  CHECK_PLATFORM_ERROR(!GetFileSizeEx(_fileHandle, &largeFileSize))
+  CHECK_PLATFORM_ERROR(!GetFileSizeEx(_fileHandle.fd, &largeFileSize))
 
   size_t fileSize = (size_t)largeFileSize.QuadPart;
   _size = std::min(length, fileSize);
@@ -54,13 +51,11 @@ bool MemoryMappedFile::Open(v8::Isolate* isolate,
 #else
   auto pathBuffer = V8StringToUtf8(isolate, options.path);
 
-  int fd = open(pathBuffer.get(), O_RDONLY);
-  CHECK_PLATFORM_ERROR(fd < 0)
-
-  FileHandle handle(fd);
+  FileHandle handle = FileHandle::OpenRead(pathBuffer.get());
+  CHECK_PLATFORM_ERROR(handle.IsInvalid())
 
   struct stat statInfo;
-  CHECK_PLATFORM_ERROR(fstat(fd, &statInfo) < 0)
+  CHECK_PLATFORM_ERROR(fstat(handle, &statInfo) < 0)
 
   if (!S_ISREG(statInfo.st_mode)) {
     // Avoid using mmap on non-regular files.
@@ -77,7 +72,7 @@ bool MemoryMappedFile::Open(v8::Isolate* isolate,
     return true;
   }
 
-  void* mapAddress = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
+  void* mapAddress = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, handle, 0);
 
   CHECK_PLATFORM_ERROR(mapAddress == MAP_FAILED)
 #endif
@@ -99,10 +94,6 @@ MemoryMappedFile::~MemoryMappedFile() {
 
   if (_fileMapping != INVALID_HANDLE_VALUE) {
     CloseHandle(_fileMapping);
-  }
-
-  if (_fileHandle != INVALID_HANDLE_VALUE) {
-    CloseHandle(_fileHandle);
   }
 #else
   if (_address != nullptr) {

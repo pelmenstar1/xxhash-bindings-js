@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "types.h"
+#include "handle.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -40,7 +41,7 @@ class MemoryMappedFile {
   size_t _size = 0;
 
 #ifdef _WIN32
-  HANDLE _fileHandle = INVALID_HANDLE_VALUE;
+  FileHandle _fileHandle;
   HANDLE _fileMapping = INVALID_HANDLE_VALUE;
 #endif
 };
