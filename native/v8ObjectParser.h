@@ -1,4 +1,5 @@
 #include <optional>
+#include <stdexcept>
 
 #include "v8.h"
 #include "v8Utils.h"
@@ -58,11 +59,12 @@ static std::optional<T> V8ParsePropertyOptional(v8::Isolate* isolate,
                                                 T defaultValue) {
   auto property =
       V8GetObjectProperty(isolate->GetCurrentContext(), object, name);
-  if (property.IsEmpty()) {
-    return {defaultValue};
+  v8::Local<v8::Value> propertyValue;
+  if (property.ToLocal(&propertyValue)) {
+    return V8ValueParser<T>()(isolate, propertyValue, defaultValue);
   }
 
-  return V8ValueParser<T>()(isolate, property.ToLocalChecked(), defaultValue);
+  return {};
 }
 
 template <typename T>
@@ -71,28 +73,28 @@ static std::optional<T> V8ParseProperty(v8::Isolate* isolate,
                                         const char* name) {
   auto property =
       V8GetObjectProperty(isolate->GetCurrentContext(), object, name);
-  if (property.IsEmpty()) {
-    return {};
+  v8::Local<v8::Value> propertyValue;
+  if (property.ToLocal(&propertyValue)) {
+    return V8ValueParser<T>()(isolate, propertyValue);
   }
 
-  return V8ValueParser<T>()(isolate, property.ToLocalChecked());
+  return {};
 }
 
 #define _V8_PARSE_PROPERTY(isolate, name, expectedType, cType, parse) \
   std::optional<cType> name##Prop__ = parse;                          \
   if (!name##Prop__.has_value()) {                                    \
-    Nan::ThrowError("Expected type of property \"" #name              \
-                    "\" is " expectedType);                           \
-    return {};                                                        \
+    throw std::runtime_error("Expected type of property \"" #name     \
+                             "\" is " expectedType);                  \
   }                                                                   \
   cType name##Prop = name##Prop__.value();
 
 #define V8_PARSE_PROPERTY(object, name, expectedType, cType) \
-  _V8_PARSE_PROPERTY(isolate, name, expectedType, cType,              \
+  _V8_PARSE_PROPERTY(isolate, name, expectedType, cType,     \
                      V8ParseProperty<cType>(isolate, object, #name))
 
 #define V8_PARSE_PROPERTY_OPTIONAL(object, name, expectedType, cType, \
-                                   defaultValue)                               \
-  _V8_PARSE_PROPERTY(                                                          \
-      isolate, name, expectedType, cType,                                      \
+                                   defaultValue)                      \
+  _V8_PARSE_PROPERTY(                                                 \
+      isolate, name, expectedType, cType,                             \
       V8ParsePropertyOptional<cType>(isolate, object, #name, defaultValue))

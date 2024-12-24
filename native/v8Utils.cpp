@@ -1,5 +1,6 @@
 #include "v8Utils.h"
 #include <nan.h>
+#include <stdexcept>
 
 #include "errorMacro.h"
 
@@ -86,7 +87,7 @@ v8::MaybeLocal<v8::Value> V8GetObjectProperty(v8::Local<v8::Context> context,
                                               const char* name) {
   auto key = Nan::New(name);
   if (key.IsEmpty()) {
-    return {};
+    throw std::runtime_error("Cannot create a string");
   }
 
   return obj->Get(context, key.ToLocalChecked());

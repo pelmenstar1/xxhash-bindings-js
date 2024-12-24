@@ -10,12 +10,12 @@ void OneshotHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
 
   int argCount = info.Length();
   if (argCount < 1 || argCount > 2) {
-    THROW_INVALID_ARG_COUNT;
+    throw std::runtime_error("Wrong number of arguments");
   }
 
   auto bufferArg = info[0];
   if (!bufferArg->IsUint8Array()) {
-    THROW_INVALID_ARG_TYPE(1, "Uint8Array");
+    throw std::runtime_error("Parameter 'data' is expected to be Uint8Array");
   }
 
   auto buffer = V8GetBackingStorage(bufferArg.As<v8::Uint8Array>());
@@ -25,7 +25,9 @@ void OneshotHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   if (argCount == 2) {
     auto optSeed = V8ValueParser<XxSeed<Variant>>()(isolate, info[1], 0);
     if (!optSeed.has_value()) {
-      THROW_INVALID_ARG_TYPE(1, "number, bigint, undefined or null");
+      throw std::runtime_error(
+          "Parameter 'seed' is expected to be number, bigint, undefined or "
+          "null");
     }
 
     seed = optSeed.value();

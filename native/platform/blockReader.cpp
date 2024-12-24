@@ -12,6 +12,8 @@
 
 #include <cmath>
 
+#include "platformError.h"
+
 #undef min
 
 BlockReader::~BlockReader() {
@@ -19,93 +21,77 @@ BlockReader::~BlockReader() {
   if (_buffer != nullptr) {
     _aligned_free(_buffer);
   }
-
-  if (_fileHandle != INVALID_HANDLE_VALUE) {
-    CloseHandle(_fileHandle);
-  }
 #else
-  if (_fileHandle != -1) {
-    close(_fileHandle);
-  }
-
   if (_buffer != nullptr) {
     free(_buffer);
   }
 #endif
 }
 
-PlatformOperationStatus BlockReader::Open(v8::Isolate* isolate,
-                                          const FileOpenOptions& options) {
+BlockReader BlockReader::Open(v8::Isolate* isolate,
+                              const FileOpenOptions& options) {
   size_t offset = options.offset;
   size_t length = options.length;
 
-  _offset = 0;
-  _size = length;
-
 #ifdef _WIN32
   auto pathBuffer = V8StringToUtf16(isolate, options.path);
-  HANDLE fileHandle =
+  FileHandle handle = FileHandle(
       CreateFileW((LPCWSTR)pathBuffer.get(), GENERIC_READ, FILE_SHARE_READ,
-                  NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+                  NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
 
-  CHECK_PLATFORM_ERROR(fileHandle == INVALID_HANDLE_VALUE)
-
-  _fileHandle = fileHandle;
+  CHECK_PLATFORM_ERROR(handle.fd == INVALID_HANDLE_VALUE)
 
   if (offset != 0) {
     LARGE_INTEGER largeOffset;
     largeOffset.QuadPart = offset;
 
     CHECK_PLATFORM_ERROR(
-        !SetFilePointerEx(fileHandle, largeOffset, NULL, FILE_BEGIN));
+        !SetFilePointerEx(handle.fd, largeOffset, NULL, FILE_BEGIN));
   }
 
-  _bufferSize = std::min((size_t)4096, _size);
-  _buffer = (uint8_t*)_aligned_malloc(_bufferSize, 64);
+  auto bufferSize = std::min((size_t)4096, length);
+  auto buffer = (uint8_t*)_aligned_malloc(bufferSize, 64);
 #else
   auto pathBuffer = V8StringToUtf8(isolate, options.path);
 
-  int fd = open(pathBuffer.get(), O_RDONLY);
-  CHECK_PLATFORM_ERROR(fd < 0)
-
-  _fileHandle = fd;
+  FileHandle handle = FileHandle(open(pathBuffer.get(), O_RDONLY));
+  CHECK_PLATFORM_ERROR(handle.fd < 0)
 
   if (offset != 0) {
-    CHECK_PLATFORM_ERROR(lseek(fd, offset, SEEK_SET) < 0)
+    CHECK_PLATFORM_ERROR(lseek(handle.fd, offset, SEEK_SET) < 0)
   }
 
   struct stat fileStat;
-  CHECK_PLATFORM_ERROR(fstat(fd, &fileStat) < 0)
+  CHECK_PLATFORM_ERROR(fstat(handle.fd, &fileStat) < 0)
 
-  _bufferSize = std::min((size_t)fileStat.st_blksize, length);
-  _buffer = (uint8_t*)malloc(_bufferSize);
+  auto bufferSize = std::min((size_t)fileStat.st_blksize, length);
+  auto buffer = (uint8_t*)malloc(bufferSize);
 #endif
 
-  CHECK_PLATFORM_ERROR(_buffer == nullptr);
+  CHECK_PLATFORM_ERROR(buffer == nullptr);
 
-  return PlatformOperationStatus::Success();
+  return BlockReader(std::move(handle), buffer, bufferSize, length);
 }
 
-PlatformOperationResult<Block> BlockReader::ReadBlock() {
+Block BlockReader::ReadBlock() {
   size_t bytesToRead = std::min(_bufferSize, _size - _offset);
 
 #ifdef _WIN32
   DWORD bytesRead;
   bool result =
-      ReadFile(_fileHandle, _buffer, (DWORD)bytesToRead, &bytesRead, NULL);
+      ReadFile(_handle.fd, _buffer, (DWORD)bytesToRead, &bytesRead, NULL);
 
   if (!result) {
-    return PlatformOperationResult<Block>::Error();
+    ThrowPlatformException();
   }
 #else
-  ssize_t bytesRead = read(_fileHandle, _buffer, bytesToRead);
+  ssize_t bytesRead = read(_handle.fd, _buffer, bytesToRead);
   if (bytesRead < 0) {
-    return PlatformOperationResult<Block>::Error();
+    ThrowPlatformException();
   }
 #endif
 
   _offset += bytesRead;
 
-  return PlatformOperationResult<Block>::Success(
-      {_buffer, (uint32_t)bytesRead});
+  return {_buffer, (uint32_t)bytesRead};
 }

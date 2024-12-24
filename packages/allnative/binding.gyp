@@ -17,11 +17,21 @@
      
       "../../native/platform/blockReader.cpp",
       "../../native/platform/memoryMap.cpp",
-      "../../native/platform/platformOperationStatus.cpp",
+      "../../native/platform/platformError.cpp",
     ],
     "include_dirs": [
       "<!(node -e \"require('nan')\")"
     ],
+    "cflags": ['-fexceptions'],
+    "cflags_cc": ['-fexceptions'],
+    'conditions': [
+      ['OS=="win"', { 
+        'defines': [ '_HAS_EXCEPTIONS=1' ], 
+         'msvs_settings': {
+            'VCCLCompilerTool': { 'AdditionalOptions': ['/EHsc'], },
+        },
+      }]
+    ]
   }
 ]
 }

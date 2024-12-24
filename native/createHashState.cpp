@@ -5,15 +5,18 @@
 
 template <int Variant>
 void CreateHashState(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  auto isolate = info.GetIsolate();
+
   v8::Local<v8::Value> seedArg =
       info.Length() > 0 ? info[0]
-                        : v8::Undefined(info.GetIsolate()).As<v8::Value>();
+                        : v8::Undefined(isolate).As<v8::Value>();
 
   v8::MaybeLocal<v8::Object> result = V8HashStateObject<Variant>::NewInstance(
-      info.GetIsolate()->GetCurrentContext(), seedArg);
+      isolate->GetCurrentContext(), seedArg);
 
-  if (!result.IsEmpty()) {
-    info.GetReturnValue().Set(result.ToLocalChecked());
+  v8::Local<v8::Object> resultValue;
+  if (result.ToLocal(&resultValue)) {
+    info.GetReturnValue().Set(resultValue);
   }
 }
 

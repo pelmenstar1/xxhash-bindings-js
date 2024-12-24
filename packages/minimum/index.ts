@@ -33,19 +33,16 @@ try {
   addon = require('./build/Debug/xxhash-min.node');
 }
 
-function maybeBigintMinus(
-  a: number | bigint,
-  b: number | bigint,
-): number | bigint {
-  if (typeof a === 'number') {
-    return typeof b === 'number' ? a - b : BigInt(a) - b;
-  }
+function maybeBigintMin(a: number, b: UInt64): number {
+  const result = Math.min(a, Number(b));
 
-  return typeof b === 'number' ? a - BigInt(b) : a - b;
+  return Number.isNaN(result) ? a : result;
 }
 
-function bigintToNumber(a: number | bigint): number {
-  return typeof a === 'number' ? a : Number.parseInt(a.toString(), 10);
+function maybeBigintMinus(a: UInt64, b: UInt64): UInt64 {
+  return typeof a == 'number' && typeof b == 'number'
+    ? a - b
+    : BigInt(a) - BigInt(b);
 }
 
 function createFileHasher<S, H extends UInt64>(
@@ -61,23 +58,21 @@ function createFileHasher<S, H extends UInt64>(
     try {
       const state = createState(seed);
 
-      const buffer = Buffer.allocUnsafe(
-        length == undefined ? 4096 : Math.min(4096, Number(length)),
-      );
+      const buffer = Buffer.allocUnsafe(maybeBigintMin(4096, length));
 
-      let currentOffset = offset ?? 0;
+      offset = offset ?? 0;
+
+      let currentOffset = offset;
 
       while (true) {
         const bytesToRead =
           length === undefined
             ? buffer.length
-            : Math.min(
+            : maybeBigintMin(
                 buffer.length,
-                bigintToNumber(
-                  maybeBigintMinus(
-                    length,
-                    maybeBigintMinus(currentOffset, offset),
-                  ),
+                maybeBigintMinus(
+                  length,
+                  maybeBigintMinus(currentOffset, offset),
                 ),
               );
 

@@ -58,7 +58,7 @@ class XxHashState {
 
   ~XxHashState();
 
-  bool Init(XxSeed<Variant> seed);
+  void Init(XxSeed<Variant> seed);
   void Update(const uint8_t* data, size_t length);
 
   XxResult<Variant> GetResult();

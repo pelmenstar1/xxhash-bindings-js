@@ -1,4 +1,5 @@
 #include <optional>
+#include <stdexcept>
 
 #include "errorMacro.h"
 #include "exports.h"
@@ -35,88 +36,64 @@ struct FileHashingContext {
 };
 
 template <int Variant>
-HashResult<Variant> BlockHashFile(const FileHashingContext<Variant>& context) {
-  auto isolate = context.isolate;
+XxResult<Variant> BlockHashFile(const FileHashingContext<Variant>& context) {
   XxHashState<Variant> state = {};
-  BlockReader reader = {};
+  state.Init(context.seed);
 
-  auto openResult = reader.Open(isolate, context.ToOpenOptions());
-  if (openResult.IsError()) {
-    openResult.ThrowException(isolate);
-
-    return {};
-  }
-
-  bool initResult = state.Init(context.seed);
-  if (!initResult) {
-    isolate->ThrowError("Out of memory");
-
-    return {};
-  }
+  auto reader = BlockReader::Open(context.isolate, context.ToOpenOptions());
 
   while (true) {
-    auto readResult = reader.ReadBlock();
+    auto block = reader.ReadBlock();
 
-    if (readResult.IsSuccess()) {
-      auto block = readResult.GetValue();
-      if (block.length == 0) {
-        break;
-      }
-
-      state.Update(block.data, block.length);
-    } else {
-      readResult.ThrowException(isolate);
-
-      return {};
+    if (block.length == 0) {
+      break;
     }
+
+    state.Update(block.data, block.length);
   }
 
   return state.GetResult();
 }
 
 template <int Variant>
-HashResult<Variant> MapHashFile(const FileHashingContext<Variant>& context) {
+XxResult<Variant> MapHashFile(const FileHashingContext<Variant>& context) {
   auto isolate = context.isolate;
 
   MemoryMappedFile file;
-  auto openResult = file.Open(isolate, context.ToOpenOptions());
+  bool isCompatible = file.Open(isolate, context.ToOpenOptions());
 
-  if (openResult.IsIncompatible()) {
+  if (!isCompatible) {
     return BlockHashFile(context);
   }
 
-  if (openResult.IsError()) {
-    openResult.ThrowException(isolate);
-    return {};
-  }
-
   size_t size = file.GetSize();
-  HashResult<Variant> result = {};
+  XxResult<Variant> result;
 
   file.Access(
       [&](const uint8_t* address) {
         result =
             XxHasher<Variant>::Process(isolate, address, size, context.seed);
       },
-      [&] { isolate->ThrowError("IO error occurred while reading the file"); });
+      [&] {
+        throw std::runtime_error("IO error occurred while reading the file");
+      });
 
   return result;
 }
 
 template <int Variant>
-HashResult<Variant> HashFile(const FileHashingContext<Variant>& context) {
+XxResult<Variant> HashFile(const FileHashingContext<Variant>& context) {
   return context.preferMap ? MapHashFile<Variant>(context)
                            : BlockHashFile<Variant>(context);
 }
 
 template <int Variant>
-std::optional<FileHashingContext<Variant>> GetHashingContextFromV8Options(
+FileHashingContext<Variant> GetHashingContextFromV8Options(
     v8::Local<v8::Context> context, v8::Local<v8::Value> options) {
   auto isolate = context->GetIsolate();
 
   if (!options->IsObject()) {
-    isolate->ThrowError("Argument 'options' should be an object");
-    return {};
+    throw std::runtime_error("Argument 'options' should be an object");
   }
 
   auto optionsObj = options.As<v8::Object>();
@@ -135,10 +112,7 @@ std::optional<FileHashingContext<Variant>> GetHashingContextFromV8Options(
   V8_PARSE_PROPERTY_OPTIONAL(optionsObj, length, "number, bigint or undefined",
                              size_t, SIZE_MAX);
 
-  auto hashingContext = FileHashingContext<Variant>(
-      isolate, pathProp, preferMapProp, offsetProp, lengthProp, seedProp);
-
-  return {hashingContext};
+  return {isolate, pathProp, preferMapProp, offsetProp, lengthProp, seedProp};
 }
 
 template <int Variant>
@@ -148,23 +122,17 @@ void FileHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   int argCount = info.Length();
 
   if (argCount < 1) {
-    THROW_INVALID_ARG_COUNT;
+    throw std::runtime_error("Wrong number of arguments");
   }
 
   auto optionsArg = info[0];
   auto hashingContext =
       GetHashingContextFromV8Options<Variant>(context, info[0]);
-  if (!hashingContext.has_value()) {
-    return;
-  }
 
-  auto result = HashFile(hashingContext.value());
-  if (!result.has_value()) {
-    return;
-  }
+  XxResult<Variant> result = HashFile(hashingContext);
 
   info.GetReturnValue().Set(
-      V8HashAdapter<Variant>::TransformResult(isolate, result.value()));
+      V8HashAdapter<Variant>::TransformResult(isolate, result));
 }
 
 INSTANTIATE_HASH_FUNCTION(FileHash)

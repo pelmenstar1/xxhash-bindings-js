@@ -1,6 +1,6 @@
 #include "hashers.h"
 
-#include <iostream>
+#include <stdexcept>
 
 #include "errorMacro.h"
 #include "xxhash.h"
@@ -11,13 +11,14 @@
     if (_state != nullptr) free(_state);                               \
   }                                                                    \
   template <>                                                          \
-  bool XxHashState<type>::Init(XxSeed<type> seed) {                    \
+  void XxHashState<type>::Init(XxSeed<type> seed) {                    \
     auto state = create();                                             \
-    if (state == nullptr) return false;                                \
+    if (state == nullptr) {                                            \
+      throw std::runtime_error("Out of memory");                       \
+    }                                                                  \
                                                                        \
     reset(state, seed);                                                \
     _state = state;                                                    \
-    return true;                                                       \
   }                                                                    \
   template <>                                                          \
   void XxHashState<type>::Update(const uint8_t* data, size_t length) { \
