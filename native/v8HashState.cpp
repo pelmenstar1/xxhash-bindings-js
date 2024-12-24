@@ -4,6 +4,7 @@
 #include "helpers.h"
 #include "v8HashAdapter.h"
 #include "v8Utils.h"
+#include "v8ObjectParser.h"
 
 template <int Variant>
 Nan::Persistent<v8::Function> V8HashStateObject<Variant>::_constructor;
@@ -44,7 +45,7 @@ void V8HashStateObject<Variant>::New(
   XxSeed<Variant> seed = 0;
 
   if (argCount > 0) {
-    auto optSeed = V8HashAdapter<Variant>::GetSeed(isolate, info[0]);
+    auto optSeed = V8ValueParser<XxSeed<Variant>>()(isolate, info[0], 0);
 
     if (!optSeed.has_value()) {
       THROW_INVALID_ARG_TYPE(1, "number or bigint");

@@ -1,4 +1,3 @@
-#include <iostream>
 #include <optional>
 
 #include "errorMacro.h"
@@ -8,6 +7,7 @@
 #include "platform/blockReader.h"
 #include "platform/memoryMap.h"
 #include "v8HashAdapter.h"
+#include "v8ObjectParser.h"
 
 template <int Variant>
 using HashResult = std::optional<XxResult<Variant>>;
@@ -16,14 +16,17 @@ template <int Variant>
 struct FileHashingContext {
   v8::Isolate* isolate;
   v8::Local<v8::String> path;
+  bool preferMap;
   size_t offset;
   size_t length;
   XxSeed<Variant> seed;
 
   FileHashingContext(v8::Isolate* isolate, v8::Local<v8::String> path,
-                     size_t offset, size_t length, XxSeed<Variant> seed)
+                     bool preferMap, size_t offset, size_t length,
+                     XxSeed<Variant> seed)
       : isolate(isolate),
         path(path),
+        preferMap(preferMap),
         offset(offset),
         length(length),
         seed(seed) {}
@@ -32,8 +35,7 @@ struct FileHashingContext {
 };
 
 template <int Variant>
-HashResult<Variant> BlockProcessFile(
-    const FileHashingContext<Variant>& context) {
+HashResult<Variant> BlockHashFile(const FileHashingContext<Variant>& context) {
   auto isolate = context.isolate;
   XxHashState<Variant> state = {};
   BlockReader reader = {};
@@ -73,14 +75,14 @@ HashResult<Variant> BlockProcessFile(
 }
 
 template <int Variant>
-HashResult<Variant> MapProcessFile(const FileHashingContext<Variant>& context) {
+HashResult<Variant> MapHashFile(const FileHashingContext<Variant>& context) {
   auto isolate = context.isolate;
 
   MemoryMappedFile file;
   auto openResult = file.Open(isolate, context.ToOpenOptions());
 
   if (openResult.IsIncompatible()) {
-    return BlockProcessFile(context);
+    return BlockHashFile(context);
   }
 
   if (openResult.IsError()) {
@@ -102,10 +104,41 @@ HashResult<Variant> MapProcessFile(const FileHashingContext<Variant>& context) {
 }
 
 template <int Variant>
-static HashResult<Variant> DynamicProcessFile(
-    const FileHashingContext<Variant>& context, bool preferMap) {
-  return preferMap ? MapProcessFile<Variant>(context)
-                   : BlockProcessFile<Variant>(context);
+HashResult<Variant> HashFile(const FileHashingContext<Variant>& context) {
+  return context.preferMap ? MapHashFile<Variant>(context)
+                           : BlockHashFile<Variant>(context);
+}
+
+template <int Variant>
+std::optional<FileHashingContext<Variant>> GetHashingContextFromV8Options(
+    v8::Local<v8::Context> context, v8::Local<v8::Value> options) {
+  auto isolate = context->GetIsolate();
+
+  if (!options->IsObject()) {
+    isolate->ThrowError("Argument 'options' should be an object");
+    return {};
+  }
+
+  auto optionsObj = options.As<v8::Object>();
+
+  V8_PARSE_PROPERTY(optionsObj, path, "string", v8::Local<v8::String>);
+
+  V8_PARSE_PROPERTY_OPTIONAL(optionsObj, seed, "number, bigint or undefined",
+                             XxSeed<Variant>, 0);
+
+  V8_PARSE_PROPERTY_OPTIONAL(optionsObj, preferMap, "boolean or undefined",
+                             bool, false);
+
+  V8_PARSE_PROPERTY_OPTIONAL(optionsObj, offset, "number, bigint or undefined",
+                             size_t, 0);
+
+  V8_PARSE_PROPERTY_OPTIONAL(optionsObj, length, "number, bigint or undefined",
+                             size_t, SIZE_MAX);
+
+  auto hashingContext = FileHashingContext<Variant>(
+      isolate, pathProp, preferMapProp, offsetProp, lengthProp, seedProp);
+
+  return {hashingContext};
 }
 
 template <int Variant>
@@ -118,62 +151,14 @@ void FileHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     THROW_INVALID_ARG_COUNT;
   }
 
-  auto pathArg = info[0];
-
-  if (!pathArg->IsString()) {
-    THROW_INVALID_ARG_TYPE(1, "string");
+  auto optionsArg = info[0];
+  auto hashingContext =
+      GetHashingContextFromV8Options<Variant>(context, info[0]);
+  if (!hashingContext.has_value()) {
+    return;
   }
 
-  auto pathValue = pathArg->ToString(context).ToLocalChecked();
-
-  XxSeed<Variant> seed = 0;
-  if (argCount >= 2) {
-    auto optSeed = V8HashAdapter<Variant>::GetSeed(isolate, info[1]);
-    if (!optSeed.has_value()) {
-      THROW_INVALID_ARG_TYPE(1, "number, bigint, undefined or null");
-    }
-
-    seed = optSeed.value();
-  }
-
-  bool preferMap = true;
-  if (argCount >= 3) {
-    auto preferMapArg = info[2];
-    if (preferMapArg->IsUndefined()) {
-      preferMap = false;
-    } else if (preferMapArg->IsBoolean()) {
-      preferMap = preferMapArg->BooleanValue(isolate);
-    } else {
-      THROW_INVALID_ARG_TYPE(2, "boolean or undefined");
-    }
-  }
-
-  size_t offset = 0;
-  size_t length = SIZE_MAX;
-
-  if (argCount >= 4) {
-    auto optOffset = V8GetUInt64Optional(isolate, info[3]);
-
-    if (!optOffset.has_value()) {
-      THROW_INVALID_ARG_TYPE(3, "number, bigint, undefined or null");
-    }
-
-    offset = (size_t)optOffset.value();
-  }
-
-  if (argCount >= 5) {
-    auto optLength = V8GetUInt64Optional(isolate, info[4], SIZE_MAX);
-
-    if (!optLength.has_value()) {
-      THROW_INVALID_ARG_TYPE(4, "number, bigint, undefined or null");
-    }
-
-    length = (size_t)optLength.value();
-  }
-
-  auto result = DynamicProcessFile<Variant>(
-      FileHashingContext<Variant>(isolate, pathValue, offset, length, seed),
-      preferMap);
+  auto result = HashFile(hashingContext.value());
   if (!result.has_value()) {
     return;
   }

@@ -2,8 +2,9 @@
 #include "hashers.h"
 #include "helpers.h"
 #include "v8HashAdapter.h"
+#include "v8ObjectParser.h"
 
-template<int Variant>
+template <int Variant>
 void OneshotHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
 
@@ -22,7 +23,7 @@ void OneshotHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   XxSeed<Variant> seed = 0;
 
   if (argCount == 2) {
-    auto optSeed = V8HashAdapter<Variant>::GetSeed(isolate, info[1]);
+    auto optSeed = V8ValueParser<XxSeed<Variant>>()(isolate, info[1], 0);
     if (!optSeed.has_value()) {
       THROW_INVALID_ARG_TYPE(1, "number, bigint, undefined or null");
     }
@@ -30,7 +31,8 @@ void OneshotHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     seed = optSeed.value();
   }
 
-  auto result = XxHasher<Variant>::Process(isolate, buffer.data, buffer.length, seed);
+  auto result =
+      XxHasher<Variant>::Process(isolate, buffer.data, buffer.length, seed);
 
   info.GetReturnValue().Set(
       V8HashAdapter<Variant>::TransformResult(isolate, result));

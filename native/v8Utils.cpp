@@ -1,4 +1,5 @@
 #include "v8Utils.h"
+#include <nan.h>
 
 #include "errorMacro.h"
 
@@ -78,4 +79,15 @@ v8::Local<v8::Value> V8CreateUInt128Number(v8::Isolate* isolate, uint64_t low,
 
   return v8::BigInt::NewFromWords(isolate->GetCurrentContext(), 0, 2, words)
       .ToLocalChecked();
+}
+
+v8::MaybeLocal<v8::Value> V8GetObjectProperty(v8::Local<v8::Context> context,
+                                              v8::Local<v8::Object> obj,
+                                              const char* name) {
+  auto key = Nan::New(name);
+  if (key.IsEmpty()) {
+    return {};
+  }
+
+  return obj->Get(context, key.ToLocalChecked());
 }
