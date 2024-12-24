@@ -6,7 +6,9 @@
 #include <windows.h>
 #endif
 
-#define FALLBACK_UNKNOWN throw std::runtime_error("Unknown system error")
+v8::MaybeLocal<v8::String> UnknownSystemError(v8::Isolate* isolate) {
+  return v8::String::NewFromUtf8Literal(isolate, "Unknown system error");
+}
 
 void ThrowPlatformException() {
 #ifdef _WIN32
@@ -15,52 +17,44 @@ void ThrowPlatformException() {
   int error = errno;
 #endif
 
+  throw PlatformException(error);
+}
+
+v8::Local<v8::String> PlatformException::WhatV8(v8::Isolate* isolate) const {
+  v8::MaybeLocal<v8::String> message;
+
 #ifdef _WIN32
   LPWSTR messageBuffer = nullptr;
   DWORD messageLength = FormatMessageW(
       FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
           FORMAT_MESSAGE_IGNORE_INSERTS,
-      NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+      NULL, _error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
       reinterpret_cast<LPWSTR>(&messageBuffer), 0, NULL);
 
   if (messageLength == 0) {
-    FALLBACK_UNKNOWN;
+    message = UnknownSystemError(isolate);
+  } else {
+    message =
+        v8::String::NewFromTwoByte(isolate, (const uint16_t*)messageBuffer,
+                                   v8::NewStringType::kNormal, messageLength);
   }
 
-  throw PlatformException(messageBuffer, messageLength);
+  LocalFree(messageBuffer);
 #else
-  const char* errorDesc = strerror(error);
+  const char* errorDesc = strerror(_error);
 
   if (errorDesc == nullptr) {
-    FALLBACK_UNKNOWN;
+    message = UnknownSystemError(isolate);
+  } else {
+    message = v8::String::NewFromUtf8(isolate, errorDesc);
   }
-
-  throw PlatformException(errorDesc);
 #endif
-}
 
-PlatformException::PlatformException(const PlatformException& other) {
-#ifdef _WIN32
-  _winWhat = (LPWSTR)LocalAlloc(0, other._whatLength * 2);
-  _whatLength = other._whatLength;
+  v8::Local<v8::String> messageValue;
 
-  memcpy(_winWhat, other._winWhat, other._whatLength * 2);
-#else
-  _cWhat = other._cWhat;
-#endif
-}
-
-PlatformException::PlatformException(PlatformException&& other) {
-#ifdef _WIN32
-  other._winWhat = _winWhat;
-  other._whatLength = _whatLength;
-#else
-  other._cWhat = _cWhat;
-#endif
-}
-
-PlatformException::~PlatformException() {
-#ifdef _WIN32
-  LocalFree(_winWhat);
-#endif
+  if (message.ToLocal(&messageValue)) {
+    return messageValue;
+  } else {
+    return UnknownSystemError(isolate).ToLocalChecked();
+  }
 }

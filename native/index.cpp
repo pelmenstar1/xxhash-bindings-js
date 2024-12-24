@@ -11,20 +11,13 @@ struct ExportedFunctionToken {
   Nan::FunctionCallback function;
 };
 
-#define FUNCTION_SET_ITEM(name, func, variant) {name, func##__exc<variant>}
+#define FUNCTION_SET_ITEM(name, func, variant) {name, func<variant>}
 
 #define FUNCTION_SET(suffix, function)                       \
   FUNCTION_SET_ITEM("xxhash32_" #suffix, function, H32),     \
       FUNCTION_SET_ITEM("xxhash64_" #suffix, function, H64), \
       FUNCTION_SET_ITEM("xxhash3_" #suffix, function, H3),   \
       FUNCTION_SET_ITEM("xxhash3_128_" #suffix, function, H3_128)
-
-WITH_EXCEPTION_HANDLING(OneshotHash)
-WITH_EXCEPTION_HANDLING(CreateHashState)
-
-#ifndef XXHASH_BINDINGS_MIN
-WITH_EXCEPTION_HANDLING(FileHash)
-#endif
 
 void Init(v8::Local<v8::Object> exports) {
   v8::Local<v8::Context> context =

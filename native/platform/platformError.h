@@ -7,31 +7,20 @@
 
 #ifdef _WIN32
 #include <windows.h>
+
+using ErrorDesc = DWORD;
+#else
+using ErrorDesc = int;
 #endif
 
 class PlatformException : public std::exception {
  private:
-  const char* _cWhat;
-
-#ifdef _WIN32
-  LPWSTR _winWhat;
-  DWORD _whatLength;
-#endif
+  ErrorDesc _error;
 
  public:
-#ifdef _WIN32
-  PlatformException(LPWSTR winWhat, DWORD whatLength)
-      : _cWhat("System error"), _winWhat(winWhat), _whatLength(whatLength) {}
-#else
-  PlatformException(const char* cWhat) : _cWhat(cWhat) {}
-#endif
+  PlatformException(ErrorDesc error) : _error(error) {}
 
-  PlatformException(const PlatformException& other);
-  PlatformException(PlatformException&& other);
-
-  ~PlatformException();
-
-  virtual char const* what() const noexcept override { return _cWhat; }
+  virtual char const* what() const noexcept override { return "System error"; }
 
   v8::Local<v8::String> WhatV8(v8::Isolate* isolate) const;
 };

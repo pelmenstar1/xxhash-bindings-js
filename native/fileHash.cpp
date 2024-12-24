@@ -7,6 +7,7 @@
 #include "helpers.h"
 #include "platform/blockReader.h"
 #include "platform/memoryMap.h"
+#include "platform/platformError.h"
 #include "v8HashAdapter.h"
 #include "v8ObjectParser.h"
 
@@ -115,20 +116,26 @@ FileHashingContext<Variant> GetHashingContextFromV8Options(
 template <int Variant>
 void FileHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  int argCount = info.Length();
+  try {
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    int argCount = info.Length();
 
-  if (argCount < 1) {
-    throw std::runtime_error("Wrong number of arguments");
+    if (argCount < 1) {
+      throw std::runtime_error("Wrong number of arguments");
+    }
+
+    auto hashingContext =
+        GetHashingContextFromV8Options<Variant>(context, info[0]);
+
+    XxResult<Variant> result = HashFile(hashingContext);
+
+    info.GetReturnValue().Set(
+        V8HashAdapter<Variant>::TransformResult(isolate, result));
+  } catch (const PlatformException& exc) {
+    isolate->ThrowError(exc.WhatV8(isolate));
+  } catch (const std::exception& exc) {
+    isolate->ThrowError(Nan::New(exc.what()).ToLocalChecked());
   }
-
-  auto hashingContext =
-      GetHashingContextFromV8Options<Variant>(context, info[0]);
-
-  XxResult<Variant> result = HashFile(hashingContext);
-
-  info.GetReturnValue().Set(
-      V8HashAdapter<Variant>::TransformResult(isolate, result));
 }
 
 INSTANTIATE_HASH_FUNCTION(FileHash)
