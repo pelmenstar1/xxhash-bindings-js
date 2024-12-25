@@ -4,9 +4,6 @@
 #include <memory>
 #include <utility>
 
-#include "../helpers.h"
-#include "../v8Utils.h"
-
 #if unix
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -20,16 +17,12 @@
 
 #undef min
 
-bool MemoryMappedFile::Open(v8::Isolate* isolate,
-                                               const FileOpenOptions& options) {
-  size_t offset = options.offset;
-  size_t length = options.length;
+bool MemoryMappedFile::Open(const NativeString& path, size_t offset, size_t length) {
+  auto handle = FileHandle::OpenRead(path);
+  CHECK_PLATFORM_ERROR(handle.IsInvalid())
 
 #ifdef _WIN32
-  auto pathBuffer = V8StringToUtf16(isolate, options.path);
-
-  _fileHandle = std::move(FileHandle::OpenRead((LPCWSTR)pathBuffer.get()));
-  CHECK_PLATFORM_ERROR(_fileHandle.IsInvalid())
+  _fileHandle = std::move(handle);
 
   LARGE_INTEGER largeFileSize;
   CHECK_PLATFORM_ERROR(!GetFileSizeEx(_fileHandle.fd, &largeFileSize))
@@ -49,11 +42,6 @@ bool MemoryMappedFile::Open(v8::Isolate* isolate,
 
   CHECK_PLATFORM_ERROR(mapAddress == NULL)
 #else
-  auto pathBuffer = V8StringToUtf8(isolate, options.path);
-
-  FileHandle handle = FileHandle::OpenRead(pathBuffer.get());
-  CHECK_PLATFORM_ERROR(handle.IsInvalid())
-
   struct stat statInfo;
   CHECK_PLATFORM_ERROR(fstat(handle, &statInfo) < 0)
 

@@ -15,7 +15,7 @@ class MemoryMappedFile {
   MemoryMappedFile(const MemoryMappedFile& other) = delete;
   ~MemoryMappedFile();
 
-  bool Open(v8::Isolate* isolate, const FileOpenOptions& options);
+  bool Open(const NativeString& path, size_t offset, size_t length);
 
   template <typename Accessor, typename Handler>
   void Access(Accessor acc, Handler handler) {

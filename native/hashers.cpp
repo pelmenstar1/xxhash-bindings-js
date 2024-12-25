@@ -2,7 +2,6 @@
 
 #include <stdexcept>
 
-#include "errorMacro.h"
 #include "xxhash.h"
 
 #define IMPLEMENT_STATE(type, create, update, reset, digest, free)     \
@@ -47,8 +46,7 @@ IMPLEMENT_STATE3(H3_128, 128)
 
 #define PROCESS_FUNCTION(type)                                               \
   template <>                                                                \
-  XxResult<type> XxHasher<type>::Process(v8::Isolate* isolate,               \
-                                         const uint8_t* data, size_t length, \
+  XxResult<type> XxHasher<type>::Process(const uint8_t* data, size_t length, \
                                          XxSeed<type> seed)
 
 #define IMPLEMENT_PROCESS_32_64(width) \

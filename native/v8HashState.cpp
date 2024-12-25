@@ -1,6 +1,5 @@
 #include "v8HashState.h"
 
-#include "errorMacro.h"
 #include "helpers.h"
 #include "v8HashAdapter.h"
 #include "v8ObjectParser.h"

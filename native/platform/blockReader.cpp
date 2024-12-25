@@ -1,8 +1,5 @@
 #include "blockReader.h"
 
-#include "../helpers.h"
-#include "../v8Utils.h"
-
 #ifndef _WIN32
 #include <fcntl.h>
 #include <stdlib.h>
@@ -28,17 +25,12 @@ BlockReader::~BlockReader() {
 #endif
 }
 
-BlockReader BlockReader::Open(v8::Isolate* isolate,
-                              const FileOpenOptions& options) {
-  size_t offset = options.offset;
-  size_t length = options.length;
-
-#ifdef _WIN32
-  auto pathBuffer = V8StringToUtf16(isolate, options.path);
-  FileHandle handle = FileHandle::OpenRead((LPCWSTR)pathBuffer.get());
-
+BlockReader BlockReader::Open(const NativeString& path, size_t offset,
+                              size_t length) {
+  FileHandle handle = FileHandle::OpenRead(path);
   CHECK_PLATFORM_ERROR(handle.IsInvalid());
 
+#ifdef _WIN32
   if (offset != 0) {
     LARGE_INTEGER largeOffset;
     largeOffset.QuadPart = offset;
@@ -50,11 +42,6 @@ BlockReader BlockReader::Open(v8::Isolate* isolate,
   auto bufferSize = std::min((size_t)4096, length);
   auto buffer = (uint8_t*)_aligned_malloc(bufferSize, 64);
 #else
-  auto pathBuffer = V8StringToUtf8(isolate, options.path);
-
-  FileHandle handle = FileHandle::OpenRead(pathBuffer.get());
-  CHECK_PLATFORM_ERROR(handle.IsInvalid())
-
   if (offset != 0) {
     CHECK_PLATFORM_ERROR(lseek(handle, offset, SEEK_SET) < 0)
   }

@@ -34,8 +34,7 @@ void OneshotHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
       seed = optSeed.value();
     }
 
-    auto result =
-        XxHasher<Variant>::Process(isolate, buffer.data, buffer.length, seed);
+    auto result = XxHasher<Variant>::Process(buffer.data, buffer.length, seed);
 
     info.GetReturnValue().Set(
         V8HashAdapter<Variant>::TransformResult(isolate, result));

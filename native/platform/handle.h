@@ -1,5 +1,7 @@
 #pragma once
 
+#include "nativeString.h"
+
 #ifdef _WIN32
 #include <windows.h>
 
@@ -52,12 +54,12 @@ class FileHandle {
     return *this;
   }
 
-  static FileHandle OpenRead(const _NATIVE_CHAR* path) {
+  static FileHandle OpenRead(const NativeString& path) {
 #ifdef _WIN32
-    HANDLE fd = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL,
+    HANDLE fd = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
                             OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 #else
-    int fd = open(path, O_RDONLY);
+    int fd = open(path.c_str(), O_RDONLY);
 #endif
 
     return {fd};

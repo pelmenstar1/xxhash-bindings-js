@@ -1,36 +1,31 @@
 #include <optional>
 #include <stdexcept>
 
-#include "errorMacro.h"
 #include "exports.h"
 #include "hashers.h"
 #include "helpers.h"
 #include "platform/blockReader.h"
 #include "platform/memoryMap.h"
+#include "platform/nativeString.h"
 #include "platform/platformError.h"
 #include "v8HashAdapter.h"
 #include "v8ObjectParser.h"
 
 template <int Variant>
 struct FileHashingContext {
-  v8::Isolate* isolate;
-  v8::Local<v8::String> path;
+  NativeString path;
   bool preferMap;
   size_t offset;
   size_t length;
   XxSeed<Variant> seed;
 
-  FileHashingContext(v8::Isolate* isolate, v8::Local<v8::String> path,
-                     bool preferMap, size_t offset, size_t length,
-                     XxSeed<Variant> seed)
-      : isolate(isolate),
-        path(path),
+  FileHashingContext(NativeString path, bool preferMap, size_t offset,
+                     size_t length, XxSeed<Variant> seed)
+      : path(path),
         preferMap(preferMap),
         offset(offset),
         length(length),
         seed(seed) {}
-
-  FileOpenOptions ToOpenOptions() const { return {path, offset, length}; }
 };
 
 template <int Variant>
@@ -38,7 +33,7 @@ XxResult<Variant> BlockHashFile(const FileHashingContext<Variant>& context) {
   XxHashState<Variant> state = {};
   state.Init(context.seed);
 
-  auto reader = BlockReader::Open(context.isolate, context.ToOpenOptions());
+  auto reader = BlockReader::Open(context.path, context.offset, context.length);
 
   while (true) {
     auto block = reader.ReadBlock();
@@ -55,10 +50,8 @@ XxResult<Variant> BlockHashFile(const FileHashingContext<Variant>& context) {
 
 template <int Variant>
 XxResult<Variant> MapHashFile(const FileHashingContext<Variant>& context) {
-  auto isolate = context.isolate;
-
   MemoryMappedFile file;
-  bool isCompatible = file.Open(isolate, context.ToOpenOptions());
+  bool isCompatible = file.Open(context.path, context.offset, context.length);
 
   if (!isCompatible) {
     return BlockHashFile(context);
@@ -70,7 +63,7 @@ XxResult<Variant> MapHashFile(const FileHashingContext<Variant>& context) {
   file.Access(
       [&](const uint8_t* address) {
         result =
-            XxHasher<Variant>::Process(isolate, address, size, context.seed);
+            XxHasher<Variant>::Process(address, size, context.seed);
       },
       [&] {
         throw std::runtime_error("IO error occurred while reading the file");
@@ -110,7 +103,9 @@ FileHashingContext<Variant> GetHashingContextFromV8Options(
   V8_PARSE_PROPERTY_OPTIONAL(optionsObj, length, "number, bigint or undefined",
                              size_t, SIZE_MAX);
 
-  return {isolate, pathProp, preferMapProp, offsetProp, lengthProp, seedProp};
+  NativeString nativePath = V8StringToNative(isolate, pathProp);
+
+  return {nativePath, preferMapProp, offsetProp, lengthProp, seedProp};
 }
 
 template <int Variant>

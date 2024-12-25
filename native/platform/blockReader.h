@@ -1,18 +1,18 @@
 #include <cstdint>
 
-#include "types.h"
-
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
+#include "types.h"
 #include "handle.h"
+#include "nativeString.h"
 
 class BlockReader {
  public:
   ~BlockReader();
 
-  static BlockReader Open(v8::Isolate* isolate, const FileOpenOptions& options);
+  static BlockReader Open(const NativeString& path, size_t offset, size_t length);
   Block ReadBlock();
 
  private:

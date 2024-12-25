@@ -1,29 +1,24 @@
 #include "v8Utils.h"
+
 #include <nan.h>
+
 #include <stdexcept>
 
-#include "errorMacro.h"
-
-std::unique_ptr<char[]> V8StringToUtf8(v8::Isolate* isolate,
-                                       v8::Local<v8::String> text) {
-  int length = text->Utf8Length(isolate);
-
-  auto buffer = std::make_unique<char[]>(length + 1);
-  text->WriteUtf8(isolate, buffer.get());
-  buffer[length] = 0;
-
-  return buffer;
-}
-
-std::unique_ptr<uint16_t[]> V8StringToUtf16(v8::Isolate* isolate,
-                                            v8::Local<v8::String> text) {
+NativeString V8StringToNative(v8::Isolate* isolate,
+                              v8::Local<v8::String> text) {
+#ifdef _WIN32
   int length = text->Length();
+  auto buffer = new wchar_t[length + 1];
+  text->Write(isolate, (uint16_t*)buffer, 0, length);
+#else
+  int length = text->Utf8Length(isolate);
+  auto buffer = new char[length + 1];
+  text->WriteUtf8(isolate, buffer);
+#endif
 
-  auto buffer = std::make_unique<uint16_t[]>(length + 1);
-  text->Write(isolate, buffer.get(), 0, length);
   buffer[length] = 0;
 
-  return buffer;
+  return NativeString(buffer, length);
 }
 
 RawSizedArray V8GetBackingStorage(v8::Local<v8::Uint8Array> array) {
@@ -31,7 +26,7 @@ RawSizedArray V8GetBackingStorage(v8::Local<v8::Uint8Array> array) {
   size_t offset = array->ByteOffset();
   size_t length = array->ByteLength();
 
-  return { data + offset, length };
+  return {data + offset, length};
 }
 
 template <typename T>

@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <optional>
 
-#include "v8Utils.h"
 #include "xxhash.h"
 
 enum HashVariant { H32, H64, H3, H3_128 };
@@ -69,6 +68,6 @@ class XxHashState {
 
 template <int Variant>
 struct XxHasher {
-  static XxResult<Variant> Process(v8::Isolate* isolate, const uint8_t* data,
-                                   size_t length, XxSeed<Variant> seed);
+  static XxResult<Variant> Process(const uint8_t* data, size_t length,
+                                   XxSeed<Variant> seed);
 };
