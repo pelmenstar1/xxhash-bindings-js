@@ -165,12 +165,25 @@ const hashers = libs
   .flatMap((lib) => [lib.xxhash32, lib.xxhash64, lib.xxhash3, lib.xxhash3_128])
   .map((variant) => [variant.createState]);
 
-test.each(hashers)('throws on invalid seed', (hasher) => {
-  expect(() => hasher('123' as unknown as number)).toThrowError();
+test.each<[HasherName, string]>([
+  ['xxhash32', 'number or undefined'],
+  ['xxhash64', 'number, bigint or undefined'],
+  ['xxhash3', 'number, bigint or undefined'],
+  ['xxhash3_128', 'number, bigint or undefined'],
+])('throws on invalid seed', (name, expected) => {
+  for (const lib of libs) {
+    const { createState } = lib[name];
+
+    expect(() => createState('123' as unknown as number)).toThrowError(
+      Error(`Expected type of the parameter "seed" is ${expected}`),
+    );
+  }
 });
 
 test.each(hashers)('throws on invalid array', (hasher) => {
   const state = hasher();
 
-  expect(() => state.update(0 as unknown as Uint8Array)).toThrowError();
+  expect(() => state.update(0 as unknown as Uint8Array)).toThrowError(
+    Error('Expected type of the parameter "data" is Uint8Array'),
+  );
 });

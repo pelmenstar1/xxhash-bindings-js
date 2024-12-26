@@ -1,7 +1,6 @@
 #include "exports.h"
 #include "hashers.h"
 #include "helpers.h"
-#include "v8HashAdapter.h"
 #include "v8ObjectParser.h"
 
 template <int Variant>
@@ -9,35 +8,23 @@ void OneshotHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   try {
     v8::Isolate* isolate = info.GetIsolate();
 
-    int argCount = info.Length();
-    if (argCount < 1 || argCount > 2) {
-      throw std::runtime_error("Wrong number of arguments");
-    }
-
-    auto bufferArg = info[0];
-    if (!bufferArg->IsUint8Array()) {
-      throw std::runtime_error("Parameter 'data' is expected to be Uint8Array");
-    }
-
-    auto buffer = V8GetBackingStorage(bufferArg.As<v8::Uint8Array>());
-
+    RawSizedArray data;
     XxSeed<Variant> seed = 0;
 
-    if (argCount == 2) {
-      auto optSeed = V8ValueParser<XxSeed<Variant>>()(isolate, info[1], 0);
-      if (!optSeed.has_value()) {
-        throw std::runtime_error(
-            "Parameter 'seed' is expected to be number, bigint, undefined or "
-            "null");
-      }
-
-      seed = optSeed.value();
+    switch (info.Length()) {
+      case 2: 
+        V8_PARSE_ARGUMENT(seed, 1, XxSeed<Variant>, 0);
+      case 1:
+        V8_PARSE_ARGUMENT(data, 0, RawSizedArray);
+        break;
+      default:
+        throw std::runtime_error("Wrong number of arguments");
     }
 
-    auto result = XxHasher<Variant>::Process(buffer.data, buffer.length, seed);
+    auto result = XxHasher<Variant>::Process(data.data, data.length, seed);
 
     info.GetReturnValue().Set(
-        V8HashAdapter<Variant>::TransformResult(isolate, result));
+        V8ValueConverter<XxResult<Variant>>::ConvertBack(isolate, result));
   } catch (std::exception& exc) {
     Nan::ThrowError(exc.what());
   }

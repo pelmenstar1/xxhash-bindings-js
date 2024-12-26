@@ -65,21 +65,34 @@ test.each<[HasherName, number | bigint]>([
   }
 });
 
+test.each<[HasherName, string]>([
+  ['xxhash32', 'number or undefined'],
+  ['xxhash64', 'number, bigint or undefined'],
+  ['xxhash3', 'number, bigint or undefined'],
+  ['xxhash3_128', 'number, bigint or undefined'],
+])('throws on invalid seed', (name, expected) => {
+  for (const lib of libs) {
+    const { oneshot } = lib[name];
+
+    expect(() =>
+      oneshot(Uint8Array.of(), '123' as unknown as number),
+    ).toThrowError(
+      Error(`Expected type of the parameter "seed" is ${expected}`),
+    );
+  }
+});
+
 test.each<[HasherName]>([
   ['xxhash32'],
   ['xxhash64'],
   ['xxhash3'],
   ['xxhash3_128'],
-])('throws on invalid arguments', (name) => {
+])('throws on invalid seed', (name) => {
   for (const lib of libs) {
     const { oneshot } = lib[name];
 
-    const unsafeHasher = hideArgumentTypes<
-      [Uint8Array, number | undefined],
-      number | bigint
-    >(oneshot);
-
-    expect(() => unsafeHasher(Uint8Array.of(), '123')).toThrowError();
-    expect(() => unsafeHasher(0 as unknown as Uint8Array, 1)).toThrowError();
+    expect(() => oneshot(1 as unknown as Uint8Array, 123)).toThrowError(
+      Error('Expected type of the parameter "data" is Uint8Array'),
+    );
   }
 });

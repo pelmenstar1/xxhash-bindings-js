@@ -1,7 +1,6 @@
 #include "v8HashState.h"
 
 #include "helpers.h"
-#include "v8HashAdapter.h"
 #include "v8ObjectParser.h"
 #include "v8Utils.h"
 
@@ -37,22 +36,13 @@ void V8HashStateObject<Variant>::New(
   auto isolate = info.GetIsolate();
 
   try {
-    int argCount = info.Length();
-    if (argCount != 1) {
-      throw std::runtime_error("Wrong number of arguments");
-    }
-
     XxSeed<Variant> seed = 0;
-
-    if (argCount > 0) {
-      auto optSeed = V8ValueParser<XxSeed<Variant>>()(isolate, info[0], 0);
-
-      if (!optSeed.has_value()) {
-        throw std::runtime_error(
-            "Parameter 'data' is expected to be number, bigint or undefined");
-      }
-
-      seed = optSeed.value();
+    switch (info.Length()) {
+      case 1:
+        V8_PARSE_ARGUMENT(seed, 0, XxSeed<Variant>, 0);
+        break;
+      default:
+        throw std::runtime_error("Wrong number of arguments");
     }
 
     XxHashState<Variant> state;
@@ -70,26 +60,25 @@ void V8HashStateObject<Variant>::New(
 template <int Variant>
 void V8HashStateObject<Variant>::Update(
     const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  auto isolate = info.GetIsolate();
+
   try {
     auto obj = ObjectWrap::Unwrap<V8HashStateObject<Variant>>(info.Holder());
     auto&& state = obj->_state;
 
-    if (info.Length() != 1) {
-      throw std::runtime_error("Wrong number of arguments");
+    RawSizedArray data;
+
+    switch (info.Length()) {
+      case 1:
+        V8_PARSE_ARGUMENT(data, 0, RawSizedArray);
+        break;
+      default:
+        throw std::runtime_error("Wrong number of arguments");
     }
 
-    auto bufferArg = info[0];
-
-    if (!bufferArg->IsUint8Array()) {
-      throw std::runtime_error(
-            "Parameter 'data' is expected to Uint8Array");
-    }
-
-    auto buffer = V8GetBackingStorage(bufferArg.As<v8::Uint8Array>());
-
-    state.Update(buffer.data, buffer.length);
+    state.Update(data.data, data.length);
   } catch (const std::exception& exc) {
-    info.GetIsolate()->ThrowError(Nan::New(exc.what()).ToLocalChecked());
+    isolate->ThrowError(Nan::New(exc.what()).ToLocalChecked());
   }
 }
 
@@ -102,7 +91,8 @@ void V8HashStateObject<Variant>::GetResult(
     auto obj = ObjectWrap::Unwrap<V8HashStateObject<Variant>>(info.Holder());
 
     XxResult<Variant> result = obj->_state.GetResult();
-    auto v8Result = V8HashAdapter<Variant>::TransformResult(isolate, result);
+    auto v8Result =
+        V8ValueConverter<XxResult<Variant>>::ConvertBack(isolate, result);
 
     info.GetReturnValue().Set(v8Result);
   } catch (const std::exception& exc) {

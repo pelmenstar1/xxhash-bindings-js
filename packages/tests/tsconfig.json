@@ -3,6 +3,7 @@
     "module": "Preserve",
     "target": "ES5",
     "moduleResolution": "bundler",
+    "downlevelIteration": true,
     "esModuleInterop": true
   },
 }

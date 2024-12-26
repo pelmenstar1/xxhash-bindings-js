@@ -1,100 +1,104 @@
-#include <optional>
+#pragma once
+
 #include <stdexcept>
 
 #include "v8.h"
 #include "v8Utils.h"
+#include "xxhash.h"
 
-template <typename T>
-struct V8ValueParser {};
+struct RawSizedArray {
+  uint8_t* data;
+  size_t length;
 
-template <>
-struct V8ValueParser<v8::Local<v8::String>> {
-  std::optional<v8::Local<v8::String>> operator()(v8::Isolate* isolate,
-                                                  v8::Local<v8::Value> value) {
-    if (!value->IsString()) {
-      return {};
-    }
-
-    return {value.As<v8::String>()};
-  }
-};
-
-template <>
-struct V8ValueParser<uint32_t> {
-  std::optional<uint32_t> operator()(v8::Isolate* isolate,
-                                     v8::Local<v8::Value> value,
-                                     uint32_t defaultValue) {
-    return V8GetUInt32Optional(isolate, value, defaultValue);
-  }
-};
-
-template <>
-struct V8ValueParser<uint64_t> {
-  std::optional<uint64_t> operator()(v8::Isolate* isolate,
-                                     v8::Local<v8::Value> value,
-                                     uint64_t defaultValue) {
-    return V8GetUInt64Optional(isolate, value, defaultValue);
-  }
-};
-
-template <>
-struct V8ValueParser<bool> {
-  std::optional<bool> operator()(v8::Isolate* isolate,
-                                 v8::Local<v8::Value> value,
-                                 bool defaultValue) {
-    if (value->IsUndefined()) {
-      return {defaultValue};
-    } else if (value->IsBoolean()) {
-      return {value->BooleanValue(isolate)};
-    }
-
-    return {};
-  }
+  RawSizedArray() : data(nullptr), length(0) {}
+  RawSizedArray(uint8_t* data, size_t length) : data(data), length(length) {}
 };
 
 template <typename T>
-static std::optional<T> V8ParsePropertyOptional(v8::Isolate* isolate,
-                                                v8::Local<v8::Object> object,
-                                                const char* name,
-                                                T defaultValue) {
-  auto property =
-      V8GetObjectProperty(isolate->GetCurrentContext(), object, name);
-  v8::Local<v8::Value> propertyValue;
-  if (property.ToLocal(&propertyValue)) {
-    return V8ValueParser<T>()(isolate, propertyValue, defaultValue);
-  }
+struct V8ValueConverter {};
 
-  return {};
+class V8ValueParseContext {
+ private:
+  const char* _name;
+  const char* _entity;
+
+ public:
+  V8ValueParseContext(const char* name, const char* entity)
+      : _name(name), _entity(entity) {}
+
+  [[noreturn]]
+  void InvalidType(const char* expectedType) const;
+};
+
+template <typename T>
+T V8ParseArgument(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                  const char* name) {
+  return V8ValueConverter<T>::Convert(isolate, value, {name, "parameter"});
 }
 
 template <typename T>
-static std::optional<T> V8ParseProperty(v8::Isolate* isolate,
-                                        v8::Local<v8::Object> object,
-                                        const char* name) {
-  auto property =
-      V8GetObjectProperty(isolate->GetCurrentContext(), object, name);
-  v8::Local<v8::Value> propertyValue;
-  if (property.ToLocal(&propertyValue)) {
-    return V8ValueParser<T>()(isolate, propertyValue);
-  }
-
-  return {};
+T V8ParseArgument(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                  const char* name, T defaultValue) {
+  return value->IsUndefined() ? defaultValue
+                              : V8ParseArgument<T>(isolate, value, name);
 }
 
-#define _V8_PARSE_PROPERTY(isolate, name, expectedType, cType, parse) \
-  std::optional<cType> name##Prop__ = parse;                          \
-  if (!name##Prop__.has_value()) {                                    \
-    throw std::runtime_error("Expected type of property \"" #name     \
-                             "\" is " expectedType);                  \
-  }                                                                   \
-  cType name##Prop = name##Prop__.value();
+template <typename T>
+T V8ParseProperty(v8::Isolate* isolate, v8::Local<v8::Object> object,
+                  const char* name) {
+  auto property = V8GetPropertyValue(isolate, object, name);
 
-#define V8_PARSE_PROPERTY(object, name, expectedType, cType) \
-  _V8_PARSE_PROPERTY(isolate, name, expectedType, cType,     \
-                     V8ParseProperty<cType>(isolate, object, #name))
+  v8::Local<v8::Value> propertyValue;
+  if (property.ToLocal(&propertyValue)) {
+    return V8ValueConverter<T>::Convert(isolate, propertyValue,
+                                        {name, "property"});
+  }
 
-#define V8_PARSE_PROPERTY_OPTIONAL(object, name, expectedType, cType, \
-                                   defaultValue)                      \
-  _V8_PARSE_PROPERTY(                                                 \
-      isolate, name, expectedType, cType,                             \
-      V8ParsePropertyOptional<cType>(isolate, object, #name, defaultValue))
+  throw std::runtime_error("Property is required");
+}
+
+template <typename T>
+T V8ParseProperty(v8::Isolate* isolate, v8::Local<v8::Object> object,
+                  const char* name, T defaultValue) {
+  auto property = V8GetPropertyValue(isolate, object, name);
+
+  v8::Local<v8::Value> propertyValue;
+  if (property.ToLocal(&propertyValue) && !propertyValue->IsUndefined()) {
+    return V8ValueConverter<T>::Convert(isolate, propertyValue,
+                                        {name, "property"});
+  }
+
+  return defaultValue;
+}
+
+#ifdef _MSC_VER
+#define CROSS_VA_COMMA(...) , __VA_ARGS__
+#else
+#define CROSS_VA_COMMA(...) __VA_OPT__(, ) __VA_ARGS__
+#endif
+
+#define V8_PARSE_PROPERTY(object, name, cType, ...)          \
+  cType name##Prop = V8ParseProperty<cType>(isolate, object, \
+                                            #name CROSS_VA_COMMA(__VA_ARGS__))
+
+#define V8_PARSE_ARGUMENT(name, index, cType, ...)    \
+  name = V8ParseArgument<cType>(isolate, info[index], \
+                                #name CROSS_VA_COMMA(__VA_ARGS__))
+
+#define DEFINE_CONVERTER(type)                                                 \
+  template <>                                                                  \
+  struct V8ValueConverter<type> {                                              \
+    static type Convert(v8::Isolate* isolate, v8::Local<v8::Value> value,      \
+                        const V8ValueParseContext& context);                   \
+    static v8::Local<v8::Value> ConvertBack(v8::Isolate* isolate, type value); \
+  };
+
+DEFINE_CONVERTER(v8::Local<v8::String>)
+DEFINE_CONVERTER(v8::Local<v8::Object>)
+DEFINE_CONVERTER(uint32_t)
+DEFINE_CONVERTER(uint64_t)
+DEFINE_CONVERTER(bool)
+DEFINE_CONVERTER(XXH128_hash_t)
+DEFINE_CONVERTER(RawSizedArray)
+
+#undef DEFINE_CONVERTER

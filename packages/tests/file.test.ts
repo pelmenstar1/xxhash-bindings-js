@@ -165,13 +165,20 @@ test.each(hashers)('throws on invalid path', (name) => {
   }
 });
 
-test.each(hashers)('throws on invalid seed', (name) => {
+test.each<[HasherName, string]>([
+  ['xxhash32', 'number or undefined'],
+  ['xxhash64', 'number, bigint or undefined'],
+  ['xxhash3', 'number, bigint or undefined'],
+  ['xxhash3_128', 'number, bigint or undefined'],
+])('throws on invalid seed', (name, expected) => {
   for (const lib of libs) {
     const { file } = lib[name];
 
     expect(() =>
       file({ path: TEST_FILE_PATH, seed: '1' as unknown as number }),
-    ).toThrowError();
+    ).toThrowError(
+      Error(`Expected type of the property "seed" is ${expected}`),
+    );
   }
 });
 
@@ -185,7 +192,11 @@ test.each(hashers)('throws on invalid preferMap', (name) => {
         seed: 1,
         preferMap: 100 as unknown as boolean,
       }),
-    ).toThrowError();
+    ).toThrowError(
+      Error(
+        'Expected type of the property "preferMap" is boolean or undefined',
+      ),
+    );
   }
 });
 

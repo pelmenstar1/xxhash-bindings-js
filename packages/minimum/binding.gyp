@@ -10,8 +10,8 @@
       "../../native/hashers.cpp",
       "../../native/xxhash.c",
       "../../native/v8Utils.cpp",
-      "../../native/v8HashAdapter.cpp",
-      "../../native/v8HashState.cpp"
+      "../../native/v8HashState.cpp",
+      "../../native/v8ObjectParser.cpp",
     ],
     "include_dirs": [
       "<!(node -e \"require('nan')\")"
