@@ -13,20 +13,27 @@
 
 #undef min
 
-BlockReader::~BlockReader() {
 #ifdef _WIN32
-  if (_buffer != nullptr) {
-    _aligned_free(_buffer);
-  }
+
+#define ALLOCATE_BUFFER(size) ((uint8_t*)_aligned_malloc(size, 64))
+#define FREE_BUFFER _aligned_free
+
 #else
-  if (_buffer != nullptr) {
-    free(_buffer);
-  }
+
+#define ALLOCATE_BUFFER(size) ((uint8_t*)aligned_alloc(64, size))
+#define FREE_BUFFER free
+
 #endif
+
+BlockReader::~BlockReader() {
+  if (_buffer != nullptr) {
+    FREE_BUFFER(_buffer);
+  }
 }
 
-BlockReader BlockReader::Open(const NativeString& path, size_t offset,
-                              size_t length) {
+void BlockReader::Open(const NativeChar* path, size_t offset, size_t length) {
+  const uint32_t MAX_BUFFER_SIZE = 4096;
+
   FileHandle handle = FileHandle::OpenRead(path);
   CHECK_PLATFORM_ERROR(handle.IsInvalid());
 
@@ -39,8 +46,7 @@ BlockReader BlockReader::Open(const NativeString& path, size_t offset,
         !SetFilePointerEx(handle, largeOffset, NULL, FILE_BEGIN));
   }
 
-  auto bufferSize = std::min((size_t)4096, length);
-  auto buffer = (uint8_t*)_aligned_malloc(bufferSize, 64);
+  auto prefBufferSize = (uint32_t)std::min((size_t)MAX_BUFFER_SIZE, length);
 #else
   if (offset != 0) {
     CHECK_PLATFORM_ERROR(lseek(handle, offset, SEEK_SET) < 0)
@@ -49,17 +55,33 @@ BlockReader BlockReader::Open(const NativeString& path, size_t offset,
   struct stat fileStat;
   CHECK_PLATFORM_ERROR(fstat(handle, &fileStat) < 0)
 
-  auto bufferSize = std::min((size_t)fileStat.st_blksize, length);
-  auto buffer = (uint8_t*)malloc(bufferSize);
+  auto prefBufferSize = std::min((size_t)fileStat.st_blksize, length);
 #endif
+
+  uint8_t* buffer = _buffer;
+
+  if (buffer == nullptr) {
+    buffer = ALLOCATE_BUFFER(prefBufferSize);
+    _bufferSize = prefBufferSize;
+
+  } else if (prefBufferSize > _bufferSize) {
+    FREE_BUFFER(buffer);
+
+    buffer = ALLOCATE_BUFFER(MAX_BUFFER_SIZE);
+    _bufferSize = MAX_BUFFER_SIZE;
+  }
 
   CHECK_PLATFORM_ERROR(buffer == nullptr);
 
-  return BlockReader(std::move(handle), buffer, bufferSize, length);
+  _buffer = buffer;
+  _handle = std::move(handle);
+
+  _offset = 0;
+  _length = length;
 }
 
 Block BlockReader::ReadBlock() {
-  size_t bytesToRead = std::min(_bufferSize, _size - _offset);
+  size_t bytesToRead = std::min((size_t)_bufferSize, _length - _offset);
 
 #ifdef _WIN32
   DWORD bytesRead;

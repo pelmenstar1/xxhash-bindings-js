@@ -1,5 +1,6 @@
 import { createRequire } from 'module';
 import fs from 'fs';
+import path from 'path';
 
 type UInt64 = number | bigint;
 
@@ -11,11 +12,20 @@ export type FileHashingOptions<S> = {
   preferMap?: boolean;
 };
 
+export type DirectoryHashingOptions<S> = {
+  path: string;
+  seed?: S;
+  preferMap?: boolean;
+
+  acceptFile?: (name: string) => boolean;
+};
+
 export type XxHashVariant<S, H extends UInt64> = {
   oneshot(data: Uint8Array, seed?: S): H;
-  file(options: FileHashingOptions<S>): H;
-
   createState(seed?: S): XxHashState<H>;
+
+  file(options: FileHashingOptions<S>): H;
+  directory(options: DirectoryHashingOptions<S>): Map<string, H>;
 };
 
 export type XxHashState<R extends UInt64> = {
@@ -50,71 +60,131 @@ function maybeBigintMinus(a: UInt64, b: UInt64): UInt64 {
     : BigInt(a) - BigInt(b);
 }
 
+function checkPreferMap(value: unknown): asserts value is boolean | undefined {
+  if (value !== undefined && typeof value !== 'boolean') {
+    throw new TypeError(
+      'Expected type of the property "preferMap" is boolean or undefined',
+    );
+  }
+}
+
+function checkSeed<S>(
+  value: unknown,
+  check: SeedCheck<S>,
+): asserts value is S | undefined {
+  if (value !== undefined && !check.is(value)) {
+    throw new TypeError(
+      `Expected type of the property "seed" is ${check.expectedType} or undefined`,
+    );
+  }
+}
+
+function checkAcceptFile(value: unknown): asserts value is Function {
+  if (value !== undefined && typeof value !== 'function') {
+    throw new TypeError(
+      'Expected type of the property "acceptFile" is function or undefined',
+    );
+  }
+}
+
 function createFileHasher<S, H extends UInt64>(
   createState: XxHashVariant<S, H>['createState'],
   seedCheck: SeedCheck<S>,
 ): XxHashVariant<S, H>['file'] {
   return ({ path, offset, length, seed, preferMap }) => {
-    if (preferMap !== undefined && typeof preferMap !== 'boolean') {
-      throw new TypeError(
-        'Expected type of the property "preferMap" is boolean or undefined',
-      );
+    checkSeed(seed, seedCheck);
+    checkPreferMap(preferMap);
+
+    const buffer = Buffer.allocUnsafe(maybeBigintMin(4096, length));
+    const state = createState(seed);
+
+    return hashFile(path, offset, length, state, buffer);
+  };
+}
+
+function hashFile<H extends UInt64>(
+  path: string,
+  offset: UInt64 | undefined,
+  length: UInt64 | undefined,
+  state: XxHashState<H>,
+  buffer: Buffer,
+): H {
+  const fd = fs.openSync(path, fs.constants.O_RDONLY);
+
+  try {
+    offset = offset ?? 0;
+
+    let currentOffset = offset;
+
+    while (true) {
+      const bytesToRead =
+        length === undefined
+          ? buffer.length
+          : maybeBigintMin(
+              buffer.length,
+              maybeBigintMinus(length, maybeBigintMinus(currentOffset, offset)),
+            );
+
+      const bytesRead = fs.readSync(fd, buffer, 0, bytesToRead, currentOffset);
+
+      if (bytesRead == 0) {
+        break;
+      }
+
+      state.update(buffer.subarray(0, bytesRead));
+
+      if (typeof currentOffset == 'bigint') {
+        currentOffset += BigInt(bytesRead);
+      } else {
+        currentOffset += bytesRead;
+      }
     }
 
-    if (seed !== undefined && !seedCheck.is(seed)) {
-      throw new TypeError(
-        `Expected type of the property "seed" is ${seedCheck.expectedType} or undefined`,
-      );
-    }
+    return state.result();
+  } finally {
+    fs.closeSync(fd);
+  }
+}
 
-    const fd = fs.openSync(path, fs.constants.O_RDONLY);
+function createDirectoryHasher<S, H extends UInt64>(
+  createState: XxHashVariant<S, H>['createState'],
+  seedCheck: SeedCheck<S>,
+): XxHashVariant<S, H>['directory'] {
+  return ({ path: dirPath, seed, preferMap, acceptFile }) => {
+    checkSeed(seed, seedCheck);
+    checkPreferMap(preferMap);
+    checkAcceptFile(acceptFile);
+
+    const result = new Map<string, H>();
+    let dir: fs.Dir | undefined;
 
     try {
-      const state = createState(seed);
-
-      const buffer = Buffer.allocUnsafe(maybeBigintMin(4096, length));
-
-      offset = offset ?? 0;
-
-      let currentOffset = offset;
+      dir = fs.opendirSync(dirPath);
+      const buffer = Buffer.allocUnsafe(4096);
 
       while (true) {
-        const bytesToRead =
-          length === undefined
-            ? buffer.length
-            : maybeBigintMin(
-                buffer.length,
-                maybeBigintMinus(
-                  length,
-                  maybeBigintMinus(currentOffset, offset),
-                ),
-              );
-
-        const bytesRead = fs.readSync(
-          fd,
-          buffer,
-          0,
-          bytesToRead,
-          currentOffset,
-        );
-
-        if (bytesRead == 0) {
+        const entry = dir.readSync();
+        if (entry == null) {
           break;
         }
 
-        state.update(buffer.subarray(0, bytesRead));
+        if (!entry.isDirectory()) {
+          const { name } = entry;
 
-        if (typeof currentOffset == 'bigint') {
-          currentOffset += BigInt(bytesRead);
-        } else {
-          currentOffset += bytesRead;
+          if (acceptFile === undefined || acceptFile(name)) {
+            const fullPath = path.join(dirPath, name);
+            const state = createState(seed);
+            const fileResult = hashFile(fullPath, 0, undefined, state, buffer);
+
+            result.set(name, fileResult);
+          }
         }
       }
-
-      return state.result();
     } finally {
-      fs.closeSync(fd);
+      dir?.closeSync();
     }
+
+    return result;
   };
 }
 
@@ -127,6 +197,7 @@ function xxHashVariant<S, H extends UInt64>(
     oneshot,
     createState,
     file: createFileHasher(createState, seedCheck),
+    directory: createDirectoryHasher(createState, seedCheck),
   };
 }
 

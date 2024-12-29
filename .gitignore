@@ -7,3 +7,6 @@ dist
 .yarn
 .pnp.cjs
 .pnp.loader.mjs
+
+packages/tests/test_data/dir
+packages/tests/test_data/empty_dir

@@ -1,12 +1,12 @@
 import { test, expect } from 'vitest';
 import fs from 'fs';
-import { HasherName, libs } from './utils';
+import { VariantName, libs } from './utils';
 
 const TEST_FILE_PATH = './test_data/image1.png';
 
 const preferMapValues = [undefined, false, true];
 
-test.each<[HasherName, number | bigint]>([
+test.each<[VariantName, number | bigint]>([
   ['xxhash32', 52811677],
   ['xxhash64', BigInt('18153045472420481988')],
   ['xxhash3', BigInt('12531405323377630900')],
@@ -29,7 +29,7 @@ test.each<[HasherName, number | bigint]>([
   }
 });
 
-test.each<[HasherName, number, number, number | bigint]>([
+test.each<[VariantName, number, number, number | bigint]>([
   ['xxhash32', 0, 0, 46947589],
   ['xxhash32', 10_000_000_000, 10, 46947589],
   ['xxhash32', 0, 100, 3233835924],
@@ -91,7 +91,7 @@ test.each<[HasherName, number, number, number | bigint]>([
   }
 });
 
-test.each<[HasherName, number | bigint]>([
+test.each<[VariantName, number | bigint]>([
   ['xxhash32', 1945663033],
   ['xxhash64', BigInt('17740802669433987345')],
   ['xxhash3', BigInt('8310716519890529791')],
@@ -151,7 +151,7 @@ test.runIf(fs.existsSync('/dev/zero')).each([
   }
 });
 
-const hashers: [HasherName][] = [
+const hashers: [VariantName][] = [
   ['xxhash32'],
   ['xxhash64'],
   ['xxhash3'],
@@ -165,7 +165,7 @@ test.each(hashers)('throws on invalid path', (name) => {
   }
 });
 
-test.each<[HasherName, string]>([
+test.each<[VariantName, string]>([
   ['xxhash32', 'number or undefined'],
   ['xxhash64', 'number, bigint or undefined'],
   ['xxhash3', 'number, bigint or undefined'],

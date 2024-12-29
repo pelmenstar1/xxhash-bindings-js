@@ -21,7 +21,7 @@ void OneshotHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
         throw std::runtime_error("Wrong number of arguments");
     }
 
-    auto result = XxHasher<Variant>::Process(data.data, data.length, seed);
+    auto result = XxHashTraits<Variant>::Oneshot(data.data, data.length, seed);
 
     info.GetReturnValue().Set(
         V8ValueConverter<XxResult<Variant>>::ConvertBack(isolate, result));

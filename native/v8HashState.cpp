@@ -45,10 +45,7 @@ void V8HashStateObject<Variant>::New(
         throw std::runtime_error("Wrong number of arguments");
     }
 
-    XxHashState<Variant> state;
-    state.Init(seed);
-
-    auto obj = new V8HashStateObject<Variant>(std::move(state));
+    auto obj = new V8HashStateObject<Variant>(seed);
     obj->Wrap(info.This());
 
     info.GetReturnValue().Set(info.This());

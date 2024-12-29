@@ -7,7 +7,6 @@
       "../../native/oneshotHash.cpp",
       "../../native/createHashState.cpp",
 
-      "../../native/hashers.cpp",
       "../../native/xxhash.c",
       "../../native/v8Utils.cpp",
       "../../native/v8HashState.cpp",
@@ -19,8 +18,8 @@
     "defines": [
       'XXHASH_BINDINGS_MIN'
     ],
-    "cflags": ['-fexceptions'],
-    "cflags_cc": ['-fexceptions'],
+    "cflags": ['-fexceptions', '-O2'],
+    "cflags_cc": ['-fexceptions', '-O2'],
     'conditions': [
       ['OS=="win"', { 
         'defines': [ '_HAS_EXCEPTIONS=1' ], 

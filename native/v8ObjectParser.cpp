@@ -10,7 +10,7 @@
       v8::Isolate* isolate, type value)
 
 #define SINGLE_CHECK_CONVERTER(type, check, expectedType) \
-  CONVERT_DECL(v8::Local<type>) {                                    \
+  CONVERT_DECL(v8::Local<type>) {                         \
     if (value->check()) {                                 \
       return value.As<type>();                            \
     }                                                     \
@@ -20,6 +20,7 @@
 
 SINGLE_CHECK_CONVERTER(v8::String, IsString, "string")
 SINGLE_CHECK_CONVERTER(v8::Object, IsObject, "object")
+SINGLE_CHECK_CONVERTER(v8::Function, IsFunction, "function")
 
 CONVERT_DECL(uint32_t) {
   if (value->IsNumber()) {
@@ -31,7 +32,7 @@ CONVERT_DECL(uint32_t) {
     }
   }
 
-  context.InvalidType("number or undefined");
+  context.InvalidType("number");
 }
 
 CONVERT_BACK_DECL(uint32_t) {
@@ -55,7 +56,7 @@ CONVERT_DECL(uint64_t) {
     }
   }
 
-  context.InvalidType("number, bigint or undefined");
+  context.InvalidType("number, bigint");
 }
 
 CONVERT_BACK_DECL(uint64_t) {
@@ -67,7 +68,7 @@ CONVERT_DECL(bool) {
     return value->BooleanValue(isolate);
   }
 
-  context.InvalidType("boolean or undefined");
+  context.InvalidType("boolean");
 }
 
 CONVERT_BACK_DECL(bool) { return v8::Boolean::New(isolate, value); }
@@ -96,7 +97,7 @@ CONVERT_DECL(XXH128_hash_t) {
     return value;
   }
 
-  context.InvalidType("bigint or undefined");
+  context.InvalidType("bigint");
 }
 
 CONVERT_BACK_DECL(XXH128_hash_t) {
@@ -121,10 +122,14 @@ CONVERT_DECL(RawSizedArray) {
 }
 
 void V8ValueParseContext::InvalidType(const char* expectedType) const {
-  size_t bufferLength = 128 + strlen(_entity) + strlen(_name) + strlen(expectedType);
+  size_t bufferLength =
+      128 + strlen(_entity) + strlen(_name) + strlen(expectedType);
   char* buffer = (char*)malloc(bufferLength);
-  
-  int n = snprintf(buffer, bufferLength, "Expected type of the %s \"%s\" is %s", _entity, _name, expectedType);
+  const char* undefinedMarker = _allowUndefined ? " or undefined" : "";
+
+  int n =
+      snprintf(buffer, bufferLength, "Expected type of the %s \"%s\" is %s%s",
+               _entity, _name, expectedType, undefinedMarker);
 
   throw std::runtime_error(std::string(buffer, n));
 }

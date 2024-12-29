@@ -1,10 +1,10 @@
 import { test, expect } from 'vitest';
-import { HasherName, libs } from './utils';
+import { VariantName, libs } from './utils';
 
 const testData1 = Uint8Array.from([97, 98, 99, 100]);
 const testData2 = Uint8Array.from([101, 102, 103, 104]);
 
-test.each<[HasherName, number | bigint]>([
+test.each<[VariantName, number | bigint]>([
   ['xxhash32', 46947589],
   ['xxhash64', BigInt('17241709254077376921')],
   ['xxhash3', BigInt('3244421341483603138')],
@@ -26,7 +26,7 @@ test.each<[HasherName, number | bigint]>([
   }
 });
 
-test.each<[HasherName, number | bigint]>([
+test.each<[VariantName, number | bigint]>([
   ['xxhash32', 46947589],
   ['xxhash64', BigInt('17241709254077376921')],
   ['xxhash3', BigInt('3244421341483603138')],
@@ -49,7 +49,7 @@ test.each<[HasherName, number | bigint]>([
   }
 });
 
-test.each<[HasherName, number | bigint]>([
+test.each<[VariantName, number | bigint]>([
   ['xxhash32', 187479954],
   ['xxhash64', BigInt('15397730242686860875')],
   ['xxhash3', BigInt('5604079703740606211')],
@@ -165,7 +165,7 @@ const hashers = libs
   .flatMap((lib) => [lib.xxhash32, lib.xxhash64, lib.xxhash3, lib.xxhash3_128])
   .map((variant) => [variant.createState]);
 
-test.each<[HasherName, string]>([
+test.each<[VariantName, string]>([
   ['xxhash32', 'number or undefined'],
   ['xxhash64', 'number, bigint or undefined'],
   ['xxhash3', 'number, bigint or undefined'],

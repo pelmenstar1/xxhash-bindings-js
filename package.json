@@ -3,7 +3,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "benchmark": "tsx ./packages/benchmark/",
+    "benchmark": "tsx ./packages/benchmark/src/index.ts",
     "lint": "eslint",
     "test": "yarn workspace xxhash-bindings-tests vitest --run"
   },

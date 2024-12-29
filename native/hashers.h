@@ -1,53 +1,122 @@
 #pragma once
 
 #include <cstdint>
-#include <optional>
+#include <stdexcept>
 
 #include "xxhash.h"
 
 enum HashVariant { H32, H64, H3, H3_128 };
 
 template <int Variant>
-struct MetaXxHashVariant {};
+struct XxHashTraits {};
 
 template <>
-struct MetaXxHashVariant<H32> {
+struct XxHashTraits<H32> {
   using State = XXH32_state_t;
   using Seed = uint32_t;
   using Result = uint32_t;
+
+  static State* NewState() { return XXH32_createState(); }
+  static void FreeState(State* state) { XXH32_freeState(state); }
+
+  static void Reset(State* state, Seed seed) { XXH32_reset(state, seed); }
+  static void Update(State* state, const uint8_t* buffer, size_t length) {
+    XXH32_update(state, buffer, length);
+  }
+  static Result Digest(const State* state) { return XXH32_digest(state); }
+
+  static Result Oneshot(const uint8_t* buffer, size_t length, Seed seed) {
+    return XXH32(buffer, length, seed);
+  }
 };
 
 template <>
-struct MetaXxHashVariant<H64> {
+struct XxHashTraits<H64> {
   using State = XXH64_state_t;
   using Seed = uint64_t;
   using Result = uint64_t;
+
+  static State* NewState() { return XXH64_createState(); }
+  static void FreeState(State* state) { XXH64_freeState(state); }
+
+  static void Reset(State* state, Seed seed) { XXH64_reset(state, seed); }
+  static void Update(State* state, const uint8_t* buffer, size_t length) {
+    XXH64_update(state, buffer, length);
+  }
+  static Result Digest(const State* state) { return XXH64_digest(state); }
+
+  static Result Oneshot(const uint8_t* buffer, size_t length, Seed seed) {
+    return XXH64(buffer, length, seed);
+  }
 };
 
 template <>
-struct MetaXxHashVariant<H3> {
+struct XxHashTraits<H3> {
   using State = XXH3_state_t;
   using Seed = uint64_t;
   using Result = uint64_t;
+
+  static State* NewState() { return XXH3_createState(); }
+  static void FreeState(State* state) { XXH3_freeState(state); }
+
+  static void Reset(State* state, Seed seed) {
+    XXH3_64bits_reset_withSeed(state, seed);
+  }
+  static void Update(State* state, const uint8_t* buffer, size_t length) {
+    XXH3_64bits_update(state, buffer, length);
+  }
+  static Result Digest(const State* state) { return XXH3_64bits_digest(state); }
+
+  static Result Oneshot(const uint8_t* buffer, size_t length, Seed seed) {
+    return XXH3_64bits_withSeed(buffer, length, seed);
+  }
 };
 
 template <>
-struct MetaXxHashVariant<H3_128> {
+struct XxHashTraits<H3_128> {
   using State = XXH3_state_t;
   using Seed = uint64_t;
   using Result = XXH128_hash_t;
+
+  static State* NewState() { return XXH3_createState(); }
+  static void FreeState(State* state) { XXH3_freeState(state); }
+
+  static void Reset(State* state, Seed seed) {
+    XXH3_128bits_reset_withSeed(state, seed);
+  }
+  static void Update(State* state, const uint8_t* buffer, size_t length) {
+    XXH3_128bits_update(state, buffer, length);
+  }
+  static Result Digest(const State* state) {
+    return XXH3_128bits_digest(state);
+  }
+
+  static Result Oneshot(const uint8_t* buffer, size_t length, Seed seed) {
+    return XXH3_128bits_withSeed(buffer, length, seed);
+  }
 };
 
 template <int Variant>
-using XxSeed = typename MetaXxHashVariant<Variant>::Seed;
+using XxSeed = typename XxHashTraits<Variant>::Seed;
 
 template <int Variant>
-using XxResult = typename MetaXxHashVariant<Variant>::Result;
+using XxResult = typename XxHashTraits<Variant>::Result;
+
+template <int Variant>
+using _XxHashState = typename XxHashTraits<Variant>::State;
 
 template <int Variant>
 class XxHashState {
  public:
-  XxHashState() {}
+  XxHashState() {
+    _state = Traits::NewState();
+    if (_state == nullptr) {
+      throw std::runtime_error("Out of memory");
+    }
+  }
+
+  XxHashState(XxSeed<Variant> seed) : XxHashState<Variant>() { Reset(seed); }
+
   XxHashState(const XxHashState<Variant>& source) = delete;
 
   XxHashState(XxHashState<Variant>&& source) {
@@ -55,19 +124,18 @@ class XxHashState {
     source._state = nullptr;
   }
 
-  ~XxHashState();
+  ~XxHashState() { Traits::FreeState(_state); }
 
-  void Init(XxSeed<Variant> seed);
-  void Update(const uint8_t* data, size_t length);
+  void Reset(XxSeed<Variant> seed) { Traits::Reset(_state, seed); }
 
-  XxResult<Variant> GetResult();
+  void Update(const uint8_t* data, size_t length) {
+    Traits::Update(_state, data, length);
+  }
+
+  XxResult<Variant> GetResult() const { return Traits::Digest(_state); }
 
  private:
-  typename MetaXxHashVariant<Variant>::State* _state = nullptr;
-};
+  using Traits = XxHashTraits<Variant>;
 
-template <int Variant>
-struct XxHasher {
-  static XxResult<Variant> Process(const uint8_t* data, size_t length,
-                                   XxSeed<Variant> seed);
+  _XxHashState<Variant>* _state = nullptr;
 };

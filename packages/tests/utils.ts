@@ -11,6 +11,13 @@ export function hideArgumentTypes<Args extends unknown[], R>(
   return (...args) => func(...(args as Args));
 }
 
-export type HasherName = keyof typeof xxhashMin;
+export type Lib = typeof xxhashMin;
+export type VariantName = keyof Lib;
 
 export const libs = [xxhashMin, xxhashAll];
+export const variantNames = [
+  'xxhash32',
+  'xxhash64',
+  'xxhash3',
+  'xxhash3_128',
+] as const;

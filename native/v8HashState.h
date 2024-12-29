@@ -14,7 +14,7 @@ class V8HashStateObject : public Nan::ObjectWrap {
  private:
   static Nan::Persistent<v8::Function> _constructor;
 
-  V8HashStateObject(XxHashState<Variant> state) : _state(std::move(state)) {}
+  V8HashStateObject(XxSeed<Variant> seed) : _state({seed}) {}
 
   static void New(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Update(const Nan::FunctionCallbackInfo<v8::Value>& info);

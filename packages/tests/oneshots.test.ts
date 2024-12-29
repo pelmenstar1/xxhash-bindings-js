@@ -1,9 +1,9 @@
 import { expect, test } from 'vitest';
-import { HasherName, hideArgumentTypes, libs } from './utils';
+import { VariantName, hideArgumentTypes, libs } from './utils';
 
 const testData = Uint8Array.from([97, 98, 99, 100]);
 
-test.each<[HasherName, number | bigint]>([
+test.each<[VariantName, number | bigint]>([
   ['xxhash32', 46947589],
   ['xxhash64', BigInt('17241709254077376921')],
   ['xxhash3', BigInt('3244421341483603138')],
@@ -20,7 +20,7 @@ test.each<[HasherName, number | bigint]>([
   }
 });
 
-test.each<[HasherName, number | bigint]>([
+test.each<[VariantName, number | bigint]>([
   ['xxhash32', 187479954],
   ['xxhash64', BigInt('15397730242686860875')],
   ['xxhash3', BigInt('5604079703740606211')],
@@ -35,7 +35,7 @@ test.each<[HasherName, number | bigint]>([
   }
 });
 
-test.each<[HasherName, number | bigint]>([
+test.each<[VariantName, number | bigint]>([
   ['xxhash32', 0xa3643705],
   ['xxhash64', BigInt('15997673941747208908')],
   ['xxhash3', BigInt('7248448420886124688')],
@@ -50,7 +50,7 @@ test.each<[HasherName, number | bigint]>([
   }
 });
 
-test.each<[HasherName, number | bigint]>([
+test.each<[VariantName, number | bigint]>([
   ['xxhash32', 3194890655],
   ['xxhash64', BigInt('0xf5dcbd6dee3c9553')],
   ['xxhash3', BigInt('13053297174767443700')],
@@ -65,7 +65,7 @@ test.each<[HasherName, number | bigint]>([
   }
 });
 
-test.each<[HasherName, string]>([
+test.each<[VariantName, string]>([
   ['xxhash32', 'number or undefined'],
   ['xxhash64', 'number, bigint or undefined'],
   ['xxhash3', 'number, bigint or undefined'],
@@ -82,7 +82,7 @@ test.each<[HasherName, string]>([
   }
 });
 
-test.each<[HasherName]>([
+test.each<[VariantName]>([
   ['xxhash32'],
   ['xxhash64'],
   ['xxhash3'],

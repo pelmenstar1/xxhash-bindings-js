@@ -4,74 +4,11 @@
 #include "exports.h"
 #include "hashers.h"
 #include "helpers.h"
-#include "platform/blockReader.h"
-#include "platform/memoryMap.h"
+#include "fileHashWorker.h"
 #include "platform/nativeString.h"
 #include "platform/platformError.h"
 #include "v8ObjectParser.h"
 #include "v8Utils.h"
-
-template <int Variant>
-struct FileHashingContext {
-  NativeString path;
-  size_t offset;
-  size_t length;
-  XxSeed<Variant> seed;
-
-  FileHashingContext(NativeString path, size_t offset, size_t length,
-                     XxSeed<Variant> seed)
-      : path(path), offset(offset), length(length), seed(seed) {}
-};
-
-template <int Variant>
-XxResult<Variant> BlockHashFile(const FileHashingContext<Variant>& context) {
-  XxHashState<Variant> state = {};
-  state.Init(context.seed);
-
-  auto reader = BlockReader::Open(context.path, context.offset, context.length);
-
-  while (true) {
-    auto block = reader.ReadBlock();
-
-    if (block.length == 0) {
-      break;
-    }
-
-    state.Update(block.data, block.length);
-  }
-
-  return state.GetResult();
-}
-
-template <int Variant>
-XxResult<Variant> MapHashFile(const FileHashingContext<Variant>& context) {
-  MemoryMappedFile file;
-  bool isCompatible = file.Open(context.path, context.offset, context.length);
-
-  if (!isCompatible) {
-    return BlockHashFile(context);
-  }
-
-  size_t size = file.GetSize();
-  XxResult<Variant> result;
-
-  file.Access(
-      [&](const uint8_t* address) {
-        result = XxHasher<Variant>::Process(address, size, context.seed);
-      },
-      [&] {
-        throw std::runtime_error("IO error occurred while reading the file");
-      });
-
-  return result;
-}
-
-template <int Variant>
-XxResult<Variant> HashFile(const FileHashingContext<Variant>& context,
-                           bool preferMap) {
-  return preferMap ? MapHashFile<Variant>(context)
-                   : BlockHashFile<Variant>(context);
-}
 
 template <int Variant>
 void FileHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
@@ -94,7 +31,7 @@ void FileHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     V8_PARSE_PROPERTY(options, length, size_t, SIZE_MAX);
 
     NativeString nativePath = V8StringToNative(isolate, pathProp);
-    FileHashingContext<Variant> hashingContext(nativePath, offsetProp,
+    FileHashingContext<Variant> hashingContext(nativePath.c_str(), offsetProp,
                                                lengthProp, seedProp);
 
     XxResult<Variant> result = HashFile(hashingContext, preferMapProp);

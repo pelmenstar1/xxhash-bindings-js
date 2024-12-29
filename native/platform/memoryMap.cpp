@@ -17,15 +17,13 @@
 
 #undef min
 
-bool MemoryMappedFile::Open(const NativeString& path, size_t offset, size_t length) {
+bool MemoryMappedFile::Open(const NativeChar* path, size_t offset, size_t length) {
   auto handle = FileHandle::OpenRead(path);
   CHECK_PLATFORM_ERROR(handle.IsInvalid())
 
 #ifdef _WIN32
-  _fileHandle = std::move(handle);
-
   LARGE_INTEGER largeFileSize;
-  CHECK_PLATFORM_ERROR(!GetFileSizeEx(_fileHandle.fd, &largeFileSize))
+  CHECK_PLATFORM_ERROR(!GetFileSizeEx(handle, &largeFileSize))
 
   size_t fileSize = (size_t)largeFileSize.QuadPart;
   _size = std::min(length, fileSize);
@@ -35,12 +33,14 @@ bool MemoryMappedFile::Open(const NativeString& path, size_t offset, size_t leng
   }
 
   _fileMapping =
-      CreateFileMappingW(_fileHandle, NULL, PAGE_READONLY, 0, 0, NULL);
+      CreateFileMappingW(handle, NULL, PAGE_READONLY, 0, 0, NULL);
   CHECK_PLATFORM_ERROR(_fileMapping == NULL)
 
   void* mapAddress = MapViewOfFile(_fileMapping, FILE_MAP_READ, 0, 0, 0);
 
   CHECK_PLATFORM_ERROR(mapAddress == NULL)
+
+  _fileHandle = std::move(handle);
 #else
   struct stat statInfo;
   CHECK_PLATFORM_ERROR(fstat(handle, &statInfo) < 0)

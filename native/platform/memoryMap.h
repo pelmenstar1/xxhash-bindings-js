@@ -1,8 +1,9 @@
+#pragma once
+
 #include <v8.h>
 
 #include <cstdint>
 
-#include "types.h"
 #include "handle.h"
 
 #ifdef _WIN32
@@ -15,7 +16,7 @@ class MemoryMappedFile {
   MemoryMappedFile(const MemoryMappedFile& other) = delete;
   ~MemoryMappedFile();
 
-  bool Open(const NativeString& path, size_t offset, size_t length);
+  bool Open(const NativeChar* path, size_t offset, size_t length);
 
   template <typename Accessor, typename Handler>
   void Access(Accessor acc, Handler handler) {

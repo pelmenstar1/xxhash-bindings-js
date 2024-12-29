@@ -21,10 +21,12 @@ class V8ValueParseContext {
  private:
   const char* _name;
   const char* _entity;
+  bool _allowUndefined;
 
  public:
-  V8ValueParseContext(const char* name, const char* entity)
-      : _name(name), _entity(entity) {}
+  V8ValueParseContext(const char* name, const char* entity,
+                      bool allowUndefined = false)
+      : _name(name), _entity(entity), _allowUndefined(allowUndefined) {}
 
   [[noreturn]]
   void InvalidType(const char* expectedType) const;
@@ -39,8 +41,11 @@ T V8ParseArgument(v8::Isolate* isolate, v8::Local<v8::Value> value,
 template <typename T>
 T V8ParseArgument(v8::Isolate* isolate, v8::Local<v8::Value> value,
                   const char* name, T defaultValue) {
-  return value->IsUndefined() ? defaultValue
-                              : V8ParseArgument<T>(isolate, value, name);
+  return value->IsUndefined()
+             ? defaultValue
+             : V8ValueConverter<T>::Convert(
+                   isolate, value,
+                   {name, "parameter", /*allowUndefined = */ true});
 }
 
 template <typename T>
@@ -64,8 +69,8 @@ T V8ParseProperty(v8::Isolate* isolate, v8::Local<v8::Object> object,
 
   v8::Local<v8::Value> propertyValue;
   if (property.ToLocal(&propertyValue) && !propertyValue->IsUndefined()) {
-    return V8ValueConverter<T>::Convert(isolate, propertyValue,
-                                        {name, "property"});
+    return V8ValueConverter<T>::Convert(
+        isolate, propertyValue, {name, "property", /*allowUndefined = */ true});
   }
 
   return defaultValue;
@@ -95,6 +100,7 @@ T V8ParseProperty(v8::Isolate* isolate, v8::Local<v8::Object> object,
 
 DEFINE_CONVERTER(v8::Local<v8::String>)
 DEFINE_CONVERTER(v8::Local<v8::Object>)
+DEFINE_CONVERTER(v8::Local<v8::Function>)
 DEFINE_CONVERTER(uint32_t)
 DEFINE_CONVERTER(uint64_t)
 DEFINE_CONVERTER(bool)

@@ -1,16 +1,19 @@
-import fs from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'node:crypto';
 
-export function generateRandomFileContent(filePath: string, size: number) {
+export async function generateRandomFileContent(
+  filePath: string,
+  size: number,
+) {
   const BUFFER_SIZE = 4096;
 
-  let handle: number | undefined;
+  let handle: fs.FileHandle;
 
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
 
   try {
-    handle = fs.openSync(filePath, 'w+');
+    handle = await fs.open(filePath, 'w+');
 
     const buffer = Buffer.allocUnsafe(BUFFER_SIZE);
     let offset = 0;
@@ -19,10 +22,10 @@ export function generateRandomFileContent(filePath: string, size: number) {
       const bytesToWrite = Math.min(BUFFER_SIZE, size - offset);
       crypto.randomFillSync(buffer, 0, bytesToWrite);
 
-      fs.writeSync(handle, buffer, 0, bytesToWrite, offset);
+      await fs.appendFile(handle, buffer.subarray(0, bytesToWrite));
       offset += BUFFER_SIZE;
     }
   } finally {
-    fs.closeSync(handle);
+    await handle?.close();
   }
 }
