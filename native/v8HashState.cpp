@@ -15,9 +15,10 @@ void V8HashStateObject<Variant>::Init() {
 
   v8::Local<v8::FunctionTemplate> tpl = Nan::New<v8::FunctionTemplate>(New);
   tpl->SetClassName(Nan::New("XxHashState").ToLocalChecked());
-  tpl->InstanceTemplate()->SetInternalFieldCount(1);
+  tpl->InstanceTemplate()->SetInternalFieldCount(2);
 
   Nan::SetPrototypeMethod(tpl, "update", Update);
+  Nan::SetPrototypeMethod(tpl, "reset", Reset);
   Nan::SetPrototypeMethod(tpl, "result", GetResult);
 
   _constructor.Reset(tpl->GetFunction(context).ToLocalChecked());
@@ -52,6 +53,15 @@ void V8HashStateObject<Variant>::New(
   } catch (const std::exception& exc) {
     isolate->ThrowError(Nan::New(exc.what()).ToLocalChecked());
   }
+}
+
+template <int Variant>
+void V8HashStateObject<Variant>::Reset(
+    const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  auto obj = ObjectWrap::Unwrap<V8HashStateObject<Variant>>(info.Holder());
+  auto&& state = obj->_state;
+
+  state.Reset(obj->_seed);
 }
 
 template <int Variant>

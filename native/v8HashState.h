@@ -14,13 +14,15 @@ class V8HashStateObject : public Nan::ObjectWrap {
  private:
   static Nan::Persistent<v8::Function> _constructor;
 
-  V8HashStateObject(XxSeed<Variant> seed) : _state({seed}) {}
+  V8HashStateObject(XxSeed<Variant> seed) : _state({seed}), _seed(seed) {}
 
   static void New(const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void Reset(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Update(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void GetResult(const Nan::FunctionCallbackInfo<v8::Value>& info);
 
   XxHashState<Variant> _state;
+  XxSeed<Variant> _seed;
 };
 
 class V8HashStateObjectManager {

@@ -33,6 +33,7 @@ export type XxHashVariant<S, H extends UInt64> = {
 
 export type XxHashState<R extends UInt64> = {
   update(data: Uint8Array): void;
+  reset(): void;
 
   result(): R;
 };

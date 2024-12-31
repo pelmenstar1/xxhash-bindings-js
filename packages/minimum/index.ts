@@ -37,6 +37,7 @@ export type XxHashVariant<S, H extends UInt64> = {
 
 export type XxHashState<R extends UInt64> = {
   update(data: Uint8Array): void;
+  reset(): void;
 
   result(): R;
 };
@@ -155,9 +156,8 @@ function hashFile<H extends UInt64>(
 
 function hashDirectory<S, H extends UInt64>(
   dirPath: string,
-  seed: S,
+  state: XxHashState<H>,
   acceptFile: AcceptFile | undefined,
-  createState: XxHashVariant<S, H>['createState'],
   onFile: OnFile<H>,
 ) {
   let dir: fs.Dir | undefined;
@@ -176,8 +176,9 @@ function hashDirectory<S, H extends UInt64>(
         const { name } = entry;
 
         if (acceptFile === undefined || acceptFile(name)) {
+          state.reset();
+
           const fullPath = path.join(dirPath, name);
-          const state = createState(seed);
           const fileResult = hashFile(fullPath, 0, undefined, state, buffer);
 
           onFile(name, fileResult);
@@ -198,7 +199,8 @@ function createDirectoryHasher<S, H extends UInt64>(
     checkPreferMap(preferMap);
     checkAcceptFile(acceptFile);
 
-    hashDirectory(dirPath, seed, acceptFile, createState, onFile);
+    const state = createState(seed);
+    hashDirectory(dirPath, state, acceptFile, onFile);
   };
 }
 
@@ -212,7 +214,9 @@ function createDirectoryToMapHasher<S, H extends UInt64>(
     checkAcceptFile(acceptFile);
 
     const resultMap = new Map();
-    hashDirectory(dirPath, seed, acceptFile, createState, (name, value) =>
+
+    const state = createState(seed);
+    hashDirectory(dirPath, state, acceptFile, (name, value) =>
       resultMap.set(name, value),
     );
 
