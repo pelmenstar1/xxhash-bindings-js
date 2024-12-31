@@ -1,8 +1,6 @@
 import { test, expect } from 'vitest';
 import fs from 'fs';
-import { VariantName, libs } from './utils';
-
-const TEST_FILE_PATH = './test_data/image1.png';
+import { VariantName, libs, testData, variantNames } from './utils';
 
 const preferMapValues = [undefined, false, true];
 
@@ -16,7 +14,7 @@ test.each<[VariantName, number | bigint]>([
     const { file } = lib[name];
 
     for (const preferMap of preferMapValues) {
-      const baseOptions = { path: TEST_FILE_PATH, preferMap };
+      const baseOptions = { path: testData('image1.png'), preferMap };
 
       for (const options of [
         baseOptions,
@@ -72,7 +70,7 @@ test.each<[VariantName, number, number, number | bigint]>([
     const { file } = lib[name];
     for (const preferMap of preferMapValues) {
       const baseOptions = {
-        path: TEST_FILE_PATH,
+        path: testData('image1.png'),
         preferMap,
         offset,
         length,
@@ -101,7 +99,9 @@ test.each<[VariantName, number | bigint]>([
     const { file } = lib[name];
 
     for (const preferMap of preferMapValues) {
-      expect(file({ path: TEST_FILE_PATH, seed: 1, preferMap })).toBe(expected);
+      expect(file({ path: testData('image1.png'), seed: 1, preferMap })).toBe(
+        expected,
+      );
     }
   }
 });
@@ -116,7 +116,7 @@ test.each([
     const { file } = lib[name];
 
     for (const preferMap of preferMapValues) {
-      expect(file({ path: './test_data/emptyfile', preferMap })).toBe(expected);
+      expect(file({ path: testData('emptyfile'), preferMap })).toBe(expected);
     }
   }
 });
@@ -130,7 +130,7 @@ test.each([
   for (const lib of libs) {
     const { file } = lib[name];
     for (const preferMap of preferMapValues) {
-      expect(file({ path: './test_data/onebyte', preferMap })).toBe(expected);
+      expect(file({ path: testData('onebyte'), preferMap })).toBe(expected);
     }
   }
 });
@@ -151,19 +151,16 @@ test.runIf(fs.existsSync('/dev/zero')).each([
   }
 });
 
-const hashers: [VariantName][] = [
-  ['xxhash32'],
-  ['xxhash64'],
-  ['xxhash3'],
-  ['xxhash3_128'],
-] as const;
+test.each(variantNames.map((name) => [name]))(
+  'throws on invalid path',
+  (name) => {
+    for (const lib of libs) {
+      const { file } = lib[name];
 
-test.each(hashers)('throws on invalid path', (name) => {
-  for (const lib of libs) {
-    const { file } = lib[name];
-    expect(() => file({ path: 123 as unknown as string })).toThrowError();
-  }
-});
+      expect(() => file({ path: 123 as unknown as string })).toThrowError();
+    }
+  },
+);
 
 test.each<[VariantName, string]>([
   ['xxhash32', 'number or undefined'],
@@ -175,34 +172,41 @@ test.each<[VariantName, string]>([
     const { file } = lib[name];
 
     expect(() =>
-      file({ path: TEST_FILE_PATH, seed: '1' as unknown as number }),
+      file({ path: testData('image1.png'), seed: '1' as unknown as number }),
     ).toThrowError(
       Error(`Expected type of the property "seed" is ${expected}`),
     );
   }
 });
 
-test.each(hashers)('throws on invalid preferMap', (name) => {
-  for (const lib of libs) {
-    const { file } = lib[name];
+test.each(variantNames.map((name) => [name]))(
+  'throws on invalid preferMap',
+  (name) => {
+    for (const lib of libs) {
+      const { file } = lib[name];
 
-    expect(() =>
-      file({
-        path: TEST_FILE_PATH,
-        seed: 1,
-        preferMap: 100 as unknown as boolean,
-      }),
-    ).toThrowError(
-      Error(
-        'Expected type of the property "preferMap" is boolean or undefined',
-      ),
-    );
-  }
-});
+      expect(() =>
+        file({
+          path: testData('image1.png'),
+          seed: 1,
+          preferMap: 100 as unknown as boolean,
+        }),
+      ).toThrowError(
+        Error(
+          'Expected type of the property "preferMap" is boolean or undefined',
+        ),
+      );
+    }
+  },
+);
 
-test.each(hashers)('throws on non-existent path', (name) => {
-  for (const lib of libs) {
-    const { file } = lib[name];
-    expect(() => file({ path: './.should_not_exist' })).toThrowError();
-  }
-});
+test.each(variantNames.map((name) => [name]))(
+  'throws on non-existent path',
+  (name) => {
+    for (const lib of libs) {
+      const { file } = lib[name];
+
+      expect(() => file({ path: './.should_not_exist' })).toThrowError();
+    }
+  },
+);

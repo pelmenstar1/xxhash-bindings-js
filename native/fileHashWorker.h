@@ -4,14 +4,6 @@
 #include "platform/nativeString.h"
 #include "platform/platformError.h"
 
-#define _INSTANTIATE_WORKER(name, variant) template class name<variant>;
-
-#define INSTANTIATE_WORKER(name) \
-  _INSTANTIATE_WORKER(name, H32) \
-  _INSTANTIATE_WORKER(name, H64) \
-  _INSTANTIATE_WORKER(name, H3)  \
-  _INSTANTIATE_WORKER(name, H3_128)
-
 template <int Variant>
 struct FileHashingContext {
   const NativeChar* path;
@@ -56,9 +48,6 @@ class MapHashWorker : public HashWorker<Variant> {
  private:
   XxSeed<Variant> _seed;
 };
-
-INSTANTIATE_WORKER(BlockHashWorker)
-INSTANTIATE_WORKER(MapHashWorker)
 
 template <int Variant, typename Worker>
 XxResult<Variant> _HashFile(const FileHashingContext<Variant>& context) {

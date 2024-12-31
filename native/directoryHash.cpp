@@ -37,7 +37,7 @@ class FileGate {
     if (maybeResult.ToLocal(&result)) {
       // Use more general way to convert the returned value to boolean
       // in order to be more aligned with the "minimum" implementation which
-      // just does if (acceptGate ...) 
+      // just does if (acceptGate ...)
       return (FileGateResult)result->ToBoolean(isolate)->Value();
     }
 
@@ -55,9 +55,72 @@ HashWorker<Variant>* SelectHashWorker(XxSeed<Variant> seed, bool preferMap) {
 }
 
 template <int Variant>
-void DirectoryHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+struct DirectoryHashHandler {
+  v8::Isolate* isolate;
+  v8::Local<v8::String> path;
+  XxSeed<Variant> seed;
+  bool preferMap;
+  v8::Local<v8::Function> acceptFile;
+  v8::Local<v8::Function> onFile;
+
+  DirectoryHashHandler(v8::Isolate* isolate, v8::Local<v8::Object> options)
+      : isolate(isolate) {
+    path = V8ParseProperty<v8::Local<v8::String>>(isolate, options, "path");
+    seed = V8ParseProperty<XxSeed<Variant>>(isolate, options, "seed", 0);
+    preferMap = V8ParseProperty(isolate, options, "preferMap", false);
+    acceptFile = V8ParseProperty(isolate, options, "acceptFile",
+                                 v8::Local<v8::Function>());
+    onFile = V8ParseProperty<v8::Local<v8::Function>>(isolate, options, "onFile");
+  }
+
+  bool OnFile(v8::Local<v8::String> key, v8::Local<v8::Value> value) {
+    const int argc = 2;
+    v8::Local<v8::Value> argv[argc];
+    argv[0] = key;
+    argv[1] = value;
+
+    auto maybeResult = onFile->Call(isolate->GetCurrentContext(),
+                                    v8::Undefined(isolate), argc, argv);
+
+    return !maybeResult.IsEmpty();
+  }
+
+  void OnReturn(const Nan::FunctionCallbackInfo<v8::Value>& info) {}
+};
+
+template <int Variant>
+struct DirectoryToMapHashHandler {
+  v8::Isolate* isolate;
+  v8::Local<v8::String> path;
+  XxSeed<Variant> seed;
+  bool preferMap;
+  v8::Local<v8::Function> acceptFile;
+  v8::Local<v8::Map> resultMap;
+
+  DirectoryToMapHashHandler(v8::Isolate* isolate, v8::Local<v8::Object> options)
+      : isolate(isolate) {
+    path = V8ParseProperty<v8::Local<v8::String>>(isolate, options, "path");
+    seed = V8ParseProperty<XxSeed<Variant>>(isolate, options, "seed", 0);
+    preferMap = V8ParseProperty(isolate, options, "preferMap", false);
+    acceptFile = V8ParseProperty(isolate, options, "acceptFile",
+                                 v8::Local<v8::Function>());
+
+    resultMap = v8::Map::New(isolate);
+  }
+
+  bool OnFile(v8::Local<v8::String> key, v8::Local<v8::Value> value) {
+    resultMap->Set(isolate->GetCurrentContext(), key, value);
+    return true;
+  }
+
+  void OnReturn(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+    info.GetReturnValue().Set(resultMap);
+  }
+};
+
+template <int Variant, typename Handler>
+void DirectoryHashBase(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   auto isolate = info.GetIsolate();
-  auto context = isolate->GetCurrentContext();
 
   try {
     v8::Local<v8::Object> options;
@@ -69,22 +132,15 @@ void DirectoryHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
         throw std::runtime_error("Wrong number of arguments");
     }
 
-    V8_PARSE_PROPERTY(options, path, v8::Local<v8::String>);
-    V8_PARSE_PROPERTY(options, seed, XxSeed<Variant>, 0);
-    V8_PARSE_PROPERTY(options, preferMap, bool, false);
-    V8_PARSE_PROPERTY(options, acceptFile, v8::Local<v8::Function>,
-                      v8::Local<v8::Function>());
+    Handler handler(isolate, options);
 
-    FileGate fileGate(acceptFileProp);
+    FileGate fileGate(handler.acceptFile);
 
-    auto resultMap = v8::Map::New(isolate);
-
-    NativeString nativePath = V8StringToNative(isolate, pathProp);
-
+    NativeString nativePath = V8StringToNative(isolate, handler.path);
     DirectoryIterator dirIter(nativePath);
 
     std::unique_ptr<HashWorker<Variant>> worker(
-        SelectHashWorker<Variant>(seedProp, preferMapProp));
+        SelectHashWorker<Variant>(handler.seed, handler.preferMap));
 
     DirectoryEntry entry;
     while (dirIter.Next(&entry)) {
@@ -97,7 +153,10 @@ void DirectoryHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
           auto v8Result =
               V8ValueConverter<XxResult<Variant>>::ConvertBack(isolate, result);
 
-          resultMap->Set(context, key, v8Result);
+          if (!handler.OnFile(key, v8Result)) {
+            return;
+          }
+
           break;
         }
         case FileGateResult::False:
@@ -108,7 +167,7 @@ void DirectoryHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
       }
     }
 
-    info.GetReturnValue().Set(resultMap);
+    handler.OnReturn(info);
   } catch (const PlatformException& exc) {
     isolate->ThrowError(exc.WhatV8(isolate));
   } catch (const std::exception& exc) {
@@ -116,4 +175,15 @@ void DirectoryHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   }
 }
 
+template <int Variant>
+void DirectoryHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  DirectoryHashBase<Variant, DirectoryHashHandler<Variant>>(info);
+}
+
+template <int Variant>
+void DirectoryToMapHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  DirectoryHashBase<Variant, DirectoryToMapHashHandler<Variant>>(info);
+}
+
 INSTANTIATE_HASH_FUNCTION(DirectoryHash)
+INSTANTIATE_HASH_FUNCTION(DirectoryToMapHash)

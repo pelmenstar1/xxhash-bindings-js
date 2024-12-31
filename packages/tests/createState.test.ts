@@ -1,5 +1,5 @@
 import { test, expect } from 'vitest';
-import { VariantName, libs } from './utils';
+import { VariantName, libs, variantNames } from './utils';
 
 const testData1 = Uint8Array.from([97, 98, 99, 100]);
 const testData2 = Uint8Array.from([101, 102, 103, 104]);
@@ -161,10 +161,6 @@ test.each([
   }
 });
 
-const hashers = libs
-  .flatMap((lib) => [lib.xxhash32, lib.xxhash64, lib.xxhash3, lib.xxhash3_128])
-  .map((variant) => [variant.createState]);
-
 test.each<[VariantName, string]>([
   ['xxhash32', 'number or undefined'],
   ['xxhash64', 'number, bigint or undefined'],
@@ -180,10 +176,16 @@ test.each<[VariantName, string]>([
   }
 });
 
-test.each(hashers)('throws on invalid array', (hasher) => {
-  const state = hasher();
+test.each(variantNames.map((name) => [name]))(
+  'throws on invalid array',
+  (name) => {
+    for (const lib of libs) {
+      const { createState } = lib[name];
+      const state = createState();
 
-  expect(() => state.update(0 as unknown as Uint8Array)).toThrowError(
-    Error('Expected type of the parameter "data" is Uint8Array'),
-  );
-});
+      expect(() => state.update(0 as unknown as Uint8Array)).toThrowError(
+        Error('Expected type of the parameter "data" is Uint8Array'),
+      );
+    }
+  },
+);

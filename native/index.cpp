@@ -31,7 +31,8 @@ void Init(v8::Local<v8::Object> exports) {
 
 #ifndef XXHASH_BINDINGS_MIN
       FUNCTION_SET(file, FileHash),
-      FUNCTION_SET(directory, DirectoryHash)
+      FUNCTION_SET(directory, DirectoryHash),
+      FUNCTION_SET(directoryToMap, DirectoryToMapHash)
 #endif
   };
 

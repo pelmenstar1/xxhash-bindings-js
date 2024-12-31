@@ -1,18 +1,10 @@
-import xxhashMin from 'xxhash-bindings-min';
+import xxhashMin, { XxVariantName } from 'xxhash-bindings-min';
 import xxhashAll from 'xxhash-bindings-allnative';
 
-export type AnyArray<Arr extends unknown[]> = {
-  [Index in keyof Arr]: unknown;
-};
-
-export function hideArgumentTypes<Args extends unknown[], R>(
-  func: (...args: Args) => R,
-): (...args: AnyArray<Args>) => R {
-  return (...args) => func(...(args as Args));
-}
+import path from 'path';
 
 export type Lib = typeof xxhashMin;
-export type VariantName = keyof Lib;
+export type VariantName = XxVariantName;
 
 export const libs = [xxhashMin, xxhashAll];
 export const variantNames = [
@@ -21,3 +13,9 @@ export const variantNames = [
   'xxhash3',
   'xxhash3_128',
 ] as const;
+
+export const TEST_DATA_PATH = './test_data';
+
+export function testData(...paths: string[]): string {
+  return path.join(TEST_DATA_PATH, ...paths);
+}

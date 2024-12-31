@@ -4,6 +4,8 @@ import path from 'path';
 
 type UInt64 = number | bigint;
 
+export type XxVariantName = 'xxhash32' | 'xxhash64' | 'xxhash3' | 'xxhash3_128';
+
 export type FileHashingOptions<S> = {
   path: string;
   seed?: S;
@@ -12,12 +14,15 @@ export type FileHashingOptions<S> = {
   preferMap?: boolean;
 };
 
+type AcceptFile = (name: string) => boolean;
+type OnFile<H> = (name: string, hash: H) => void;
+
 export type DirectoryHashingOptions<S> = {
   path: string;
   seed?: S;
   preferMap?: boolean;
 
-  acceptFile?: (name: string) => boolean;
+  acceptFile?: AcceptFile;
 };
 
 export type XxHashVariant<S, H extends UInt64> = {
@@ -25,7 +30,9 @@ export type XxHashVariant<S, H extends UInt64> = {
   createState(seed?: S): XxHashState<H>;
 
   file(options: FileHashingOptions<S>): H;
-  directory(options: DirectoryHashingOptions<S>): Map<string, H>;
+
+  directory(options: DirectoryHashingOptions<S> & { onFile: OnFile<H> }): void;
+  directoryToMap(options: DirectoryHashingOptions<S>): Map<string, H>;
 };
 
 export type XxHashState<R extends UInt64> = {
@@ -146,45 +153,70 @@ function hashFile<H extends UInt64>(
   }
 }
 
+function hashDirectory<S, H extends UInt64>(
+  dirPath: string,
+  seed: S,
+  acceptFile: AcceptFile | undefined,
+  createState: XxHashVariant<S, H>['createState'],
+  onFile: OnFile<H>,
+) {
+  let dir: fs.Dir | undefined;
+
+  try {
+    dir = fs.opendirSync(dirPath);
+    const buffer = Buffer.allocUnsafe(4096);
+
+    while (true) {
+      const entry = dir.readSync();
+      if (entry == null) {
+        break;
+      }
+
+      if (!entry.isDirectory()) {
+        const { name } = entry;
+
+        if (acceptFile === undefined || acceptFile(name)) {
+          const fullPath = path.join(dirPath, name);
+          const state = createState(seed);
+          const fileResult = hashFile(fullPath, 0, undefined, state, buffer);
+
+          onFile(name, fileResult);
+        }
+      }
+    }
+  } finally {
+    dir?.closeSync();
+  }
+}
+
 function createDirectoryHasher<S, H extends UInt64>(
   createState: XxHashVariant<S, H>['createState'],
   seedCheck: SeedCheck<S>,
 ): XxHashVariant<S, H>['directory'] {
+  return ({ path: dirPath, seed, preferMap, acceptFile, onFile }) => {
+    checkSeed(seed, seedCheck);
+    checkPreferMap(preferMap);
+    checkAcceptFile(acceptFile);
+
+    hashDirectory(dirPath, seed, acceptFile, createState, onFile);
+  };
+}
+
+function createDirectoryToMapHasher<S, H extends UInt64>(
+  createState: XxHashVariant<S, H>['createState'],
+  seedCheck: SeedCheck<S>,
+): XxHashVariant<S, H>['directoryToMap'] {
   return ({ path: dirPath, seed, preferMap, acceptFile }) => {
     checkSeed(seed, seedCheck);
     checkPreferMap(preferMap);
     checkAcceptFile(acceptFile);
 
-    const result = new Map<string, H>();
-    let dir: fs.Dir | undefined;
+    const resultMap = new Map();
+    hashDirectory(dirPath, seed, acceptFile, createState, (name, value) =>
+      resultMap.set(name, value),
+    );
 
-    try {
-      dir = fs.opendirSync(dirPath);
-      const buffer = Buffer.allocUnsafe(4096);
-
-      while (true) {
-        const entry = dir.readSync();
-        if (entry == null) {
-          break;
-        }
-
-        if (!entry.isDirectory()) {
-          const { name } = entry;
-
-          if (acceptFile === undefined || acceptFile(name)) {
-            const fullPath = path.join(dirPath, name);
-            const state = createState(seed);
-            const fileResult = hashFile(fullPath, 0, undefined, state, buffer);
-
-            result.set(name, fileResult);
-          }
-        }
-      }
-    } finally {
-      dir?.closeSync();
-    }
-
-    return result;
+    return resultMap;
   };
 }
 
@@ -198,6 +230,7 @@ function xxHashVariant<S, H extends UInt64>(
     createState,
     file: createFileHasher(createState, seedCheck),
     directory: createDirectoryHasher(createState, seedCheck),
+    directoryToMap: createDirectoryToMapHasher(createState, seedCheck),
   };
 }
 

@@ -73,13 +73,13 @@ export async function run(): Promise<Bench> {
 
     bench
       .add(`all map (${name})`, () => {
-        allnative.xxhash3.directory(mapOptions);
+        allnative.xxhash3.directoryToMap(mapOptions);
       })
       .add(`all block (${name})`, () => {
-        allnative.xxhash3.directory(blockOptions);
+        allnative.xxhash3.directoryToMap(blockOptions);
       })
       .add(`min block (${name})`, () => {
-        minimum.xxhash3.directory(blockOptions);
+        minimum.xxhash3.directoryToMap(blockOptions);
       });
   }
 

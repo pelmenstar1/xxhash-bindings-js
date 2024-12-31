@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { VariantName, hideArgumentTypes, libs } from './utils';
+import { VariantName, libs } from './utils';
 
 const testData = Uint8Array.from([97, 98, 99, 100]);
 
