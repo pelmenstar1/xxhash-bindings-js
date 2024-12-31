@@ -3006,6 +3006,7 @@ __metadata:
     nan: "npm:^2.22.0"
     node-gyp: "npm:^11.0.0"
     typescript: "npm:^5.7.2"
+    xxhash-bindings-types: "workspace:^"
   languageName: unknown
   linkType: soft
 
@@ -3028,6 +3029,8 @@ __metadata:
     "@types/node": "npm:^22.10.2"
     nan: "npm:^2.22.0"
     node-gyp: "npm:^11.0.0"
+    typescript: "npm:^5.7.2"
+    xxhash-bindings-types: "workspace:^"
   languageName: unknown
   linkType: soft
 
@@ -3040,6 +3043,12 @@ __metadata:
     vitest: "npm:^2.1.8"
     xxhash-bindings-allnative: "workspace:^"
     xxhash-bindings-min: "workspace:^"
+  languageName: unknown
+  linkType: soft
+
+"xxhash-bindings-types@workspace:^, xxhash-bindings-types@workspace:packages/@types":
+  version: 0.0.0-use.local
+  resolution: "xxhash-bindings-types@workspace:packages/@types"
   languageName: unknown
   linkType: soft
 

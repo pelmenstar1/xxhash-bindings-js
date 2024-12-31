@@ -1,42 +1,13 @@
 import { createRequire } from 'module';
+import type { UInt64, XxHashVariant } from 'xxhash-bindings-types';
 
-type UInt64 = number | bigint;
-
-export type FileHashingOptions<S> = {
-  path: string;
-  seed?: S;
-  offset?: UInt64;
-  length?: UInt64;
-  preferMap?: boolean;
-};
-
-type AcceptFile = (name: string) => boolean;
-type OnFile<H> = (name: string, hash: H) => void;
-
-export type DirectoryHashingOptions<S> = {
-  path: string;
-  seed?: S;
-  preferMap?: boolean;
-
-  acceptFile?: AcceptFile;
-};
-
-export type XxHashVariant<S, H extends UInt64> = {
-  oneshot(data: Uint8Array, seed?: S): H;
-  createState(seed?: S): XxHashState<H>;
-
-  file(options: FileHashingOptions<S>): H;
-
-  directory(options: DirectoryHashingOptions<S> & { onFile: OnFile<H> }): void;
-  directoryToMap(options: DirectoryHashingOptions<S>): Map<string, H>;
-};
-
-export type XxHashState<R extends UInt64> = {
-  update(data: Uint8Array): void;
-  reset(): void;
-
-  result(): R;
-};
+export type {
+  DirectoryHashingOptions,
+  FileHashingOptions,
+  XxHashState,
+  XxHashVariant,
+  XxVariantName,
+} from 'xxhash-bindings-types';
 
 function xxHashVariant<S, H extends UInt64>(
   oneshot: XxHashVariant<S, H>['oneshot'],
