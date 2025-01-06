@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
+    "lib": ["ES2023"],
     "module": "Preserve",
-    "target": "ES5",
+    "target": "ES2023",
     "moduleResolution": "bundler",
     "downlevelIteration": true,
     "esModuleInterop": true,
