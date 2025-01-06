@@ -4,6 +4,9 @@
     "target": "ES5",
     "moduleResolution": "bundler",
     "downlevelIteration": true,
-    "esModuleInterop": true
-  },
+    "esModuleInterop": true,
+    "paths": {
+      "@/*": ["./*"]
+    }
+  }
 }

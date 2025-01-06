@@ -1,11 +1,10 @@
 #include "fileHashWorker.h"
 
 template <int Variant>
-XxResult<Variant> BlockHashWorker<Variant>::Process(const NativeChar* path,
-                                                    size_t offset,
-                                                    size_t length) {
+XxResult<Variant> BlockHashWorker<Variant>::Process(
+    const HashWorkerContext<>& context) {
   _state.Reset(_seed);
-  _blockReader.Open(path, offset, length);
+  _blockReader.Open(context.path, context.offset, context.length);
 
   while (true) {
     auto block = _blockReader.ReadBlock();
@@ -21,20 +20,18 @@ XxResult<Variant> BlockHashWorker<Variant>::Process(const NativeChar* path,
 }
 
 template <int Variant>
-XxResult<Variant> MapHashWorker<Variant>::Process(const NativeChar* path,
-                                                  size_t offset,
-                                                  size_t length) {
+XxResult<Variant> MapHashWorker<Variant>::Process(
+    const HashWorkerContext<>& context) {
   MemoryMappedFile file;
-  bool isCompatible = file.Open(path, offset, length);
+  bool isCompatible = file.Open(context.path, context.offset, context.length);
 
   if (!isCompatible) {
-    // Based on the assumption that the incompatible file is a pretty rare thing, and
-    // there's no sense preserving full-fledged BlockHashWorker state inside a
-    // MapHashWorker.
+    // Based on the assumption that the incompatible file is a pretty rare
+    // thing, and there's no sense preserving full-fledged BlockHashWorker state
+    // inside a MapHashWorker.
     //
     // Use a oneshot method.
-    return _HashFile<Variant, BlockHashWorker<Variant>>(
-        {path, offset, length, _seed});
+    return _HashFile<Variant, BlockHashWorker<Variant>>(context, _seed);
   }
 
   size_t size = file.GetSize();

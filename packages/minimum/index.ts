@@ -8,11 +8,17 @@ import type {
   XxHashState,
   AcceptFile,
   OnFile,
+  OnFileAsync,
+  AcceptFileAsync,
 } from 'xxhash-bindings-types';
 
 export type {
-  DirectoryHashingOptions,
-  FileHashingOptions,
+  FileHashOptions,
+  BaseDirectoryHashOptions,
+  BaseSyncDirectoryHashOptions,
+  BaseAsyncDirectoryHashOptions,
+  AsyncDirectoryHashOptions,
+  SyncDirectoryHashOptions,
   XxHashState,
   XxHashVariant,
   XxVariantName,
@@ -70,22 +76,6 @@ function checkAcceptFile(value: unknown): asserts value is Function {
     );
   }
 }
-
-function createFileHasher<S, H extends UInt64>(
-  createState: XxHashVariant<S, H>['createState'],
-  seedCheck: SeedCheck<S>,
-): XxHashVariant<S, H>['file'] {
-  return ({ path, offset, length, seed, preferMap }) => {
-    checkSeed(seed, seedCheck);
-    checkPreferMap(preferMap);
-
-    const buffer = Buffer.allocUnsafe(maybeBigintMin(4096, length));
-    const state = createState(seed);
-
-    return hashFile(path, offset, length, state, buffer);
-  };
-}
-
 function hashFile<H extends UInt64>(
   path: string,
   offset: UInt64 | undefined,
@@ -130,7 +120,75 @@ function hashFile<H extends UInt64>(
   }
 }
 
-function hashDirectory<S, H extends UInt64>(
+async function hashFileAsync<H extends UInt64>(
+  path: string,
+  offset: UInt64 | undefined,
+  length: UInt64 | undefined,
+  state: XxHashState<H>,
+): Promise<H> {
+  type ReadStreamOptions = {
+    start?: number;
+    end?: number;
+  };
+
+  const offsetNumber = Number(offset);
+  const lengthNumber = Number(length);
+
+  if (lengthNumber == 0) {
+    return state.result();
+  }
+
+  let options: ReadStreamOptions = {};
+  if (!Number.isNaN(offsetNumber)) {
+    options.start = offsetNumber;
+  }
+
+  if (!Number.isNaN(lengthNumber)) {
+    options.end =
+      (Number.isNaN(offsetNumber) ? 0 : offsetNumber) + lengthNumber - 1;
+  }
+
+  const stream = fs.createReadStream(path, options);
+
+  for await (const buffer of stream) {
+    state.update(buffer);
+  }
+
+  stream.close();
+
+  return state.result();
+}
+
+function createFileHasher<S, H extends UInt64>(
+  createState: XxHashVariant<S, H>['createState'],
+  seedCheck: SeedCheck<S>,
+): XxHashVariant<S, H>['file'] {
+  return ({ path, offset, length, seed, preferMap }) => {
+    checkSeed(seed, seedCheck);
+    checkPreferMap(preferMap);
+
+    const buffer = Buffer.allocUnsafe(maybeBigintMin(4096, length));
+    const state = createState(seed);
+
+    return hashFile(path, offset, length, state, buffer);
+  };
+}
+
+function createFileAsyncHasher<S, H extends UInt64>(
+  createState: XxHashVariant<S, H>['createState'],
+  seedCheck: SeedCheck<S>,
+): XxHashVariant<S, H>['fileAsync'] {
+  return async ({ path, offset, length, seed, preferMap }) => {
+    checkSeed(seed, seedCheck);
+    checkPreferMap(preferMap);
+
+    const state = createState(seed);
+
+    return hashFileAsync(path, offset, length, state);
+  };
+}
+
+function hashDirectory<H extends UInt64>(
   dirPath: string,
   state: XxHashState<H>,
   acceptFile: AcceptFile | undefined,
@@ -166,6 +224,30 @@ function hashDirectory<S, H extends UInt64>(
   }
 }
 
+async function hashDirectoryAsync<H extends UInt64>(
+  dirPath: string,
+  state: XxHashState<H>,
+  acceptFile: AcceptFile | undefined,
+  onFile: OnFileAsync<H>,
+) {
+  const dir = await fs.promises.opendir(dirPath);
+
+  for await (const dirent of dir) {
+    if (!dirent.isDirectory()) {
+      const { name } = dirent;
+
+      if (acceptFile === undefined || acceptFile(name)) {
+        state.reset();
+
+        const fullPath = path.join(dirPath, name);
+        const fileResult = await hashFileAsync(fullPath, 0, undefined, state);
+
+        await onFile(name, fileResult);
+      }
+    }
+  }
+}
+
 function createDirectoryHasher<S, H extends UInt64>(
   createState: XxHashVariant<S, H>['createState'],
   seedCheck: SeedCheck<S>,
@@ -177,6 +259,20 @@ function createDirectoryHasher<S, H extends UInt64>(
 
     const state = createState(seed);
     hashDirectory(dirPath, state, acceptFile, onFile);
+  };
+}
+
+function createDirectoryAsyncHasher<S, H extends UInt64>(
+  createState: XxHashVariant<S, H>['createState'],
+  seedCheck: SeedCheck<S>,
+): XxHashVariant<S, H>['directoryAsync'] {
+  return async ({ path: dirPath, seed, acceptFile, onFile }) => {
+    checkSeed(seed, seedCheck);
+    checkAcceptFile(acceptFile);
+
+    const state = createState(seed);
+
+    return hashDirectoryAsync(dirPath, state, acceptFile, onFile);
   };
 }
 
@@ -192,9 +288,28 @@ function createDirectoryToMapHasher<S, H extends UInt64>(
     const resultMap = new Map();
 
     const state = createState(seed);
-    hashDirectory(dirPath, state, acceptFile, (name, value) =>
-      resultMap.set(name, value),
-    );
+    hashDirectory(dirPath, state, acceptFile, (name, value) => {
+      resultMap.set(name, value);
+    });
+
+    return resultMap;
+  };
+}
+
+function createDirectoryToMapAsyncHasher<S, H extends UInt64>(
+  createState: XxHashVariant<S, H>['createState'],
+  seedCheck: SeedCheck<S>,
+): XxHashVariant<S, H>['directoryToMapAsync'] {
+  return async ({ path: dirPath, seed, acceptFile }) => {
+    checkSeed(seed, seedCheck);
+    checkAcceptFile(acceptFile);
+
+    const resultMap = new Map();
+
+    const state = createState(seed);
+    await hashDirectoryAsync(dirPath, state, acceptFile, (name, value) => {
+      resultMap.set(name, value);
+    });
 
     return resultMap;
   };
@@ -208,9 +323,16 @@ function xxHashVariant<S, H extends UInt64>(
   return {
     oneshot,
     createState,
+
     file: createFileHasher(createState, seedCheck),
+    fileAsync: createFileAsyncHasher(createState, seedCheck),
     directory: createDirectoryHasher(createState, seedCheck),
+    directoryAsync: createDirectoryAsyncHasher(createState, seedCheck),
     directoryToMap: createDirectoryToMapHasher(createState, seedCheck),
+    directoryToMapAsync: createDirectoryToMapAsyncHasher(
+      createState,
+      seedCheck,
+    ),
   };
 }
 

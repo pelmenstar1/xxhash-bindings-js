@@ -102,3 +102,108 @@ Block BlockReader::ReadBlock() {
 
   return {_buffer, (uint32_t)bytesRead};
 }
+
+AsyncBlockReader::~AsyncBlockReader() {
+  if (_openInitialized) {
+    uv_fs_req_cleanup(&_openReq);
+  }
+
+  if (_readInitialized) {
+    FREE_BUFFER(_uvBuffer.base);
+    uv_fs_req_cleanup(&_readReq);
+  }
+}
+
+void OpenCallback(uv_fs_t* req) {
+  AsyncBlockReader* reader = (AsyncBlockReader*)req->data;
+
+  bool proceed = reader->_HandleOpenResponse(req);
+  if (!proceed) {
+    delete reader;
+  }
+}
+
+void ReadCallback(uv_fs_t* req) {
+  AsyncBlockReader* reader = (AsyncBlockReader*)req->data;
+
+  bool proceed = reader->_HandleReadResponse(req);
+  if (!proceed) {
+    delete reader;
+  }
+}
+
+bool AsyncBlockReader::_HandleOpenResponse(uv_fs_t* req) {
+  if (req->result >= 0) {
+    // Special case
+    if (_length == 0) {
+      OnEnd();
+      return false;
+    }
+
+    char* buffer = (char*)ALLOCATE_BUFFER(BufferSize);
+    _uvBuffer = uv_buf_init(buffer, BufferSize);
+    _uvBuffer.len = std::min(_length, BufferSize);
+
+    _readReq.data = this;
+    _readInitialized = true;
+
+    int64_t reqOffset = _readFromBeginning ? -1 : (int64_t)_fileOffset;
+
+    uv_fs_read(req->loop, &_readReq, req->result, &_uvBuffer, 1,
+               reqOffset, ReadCallback);
+
+    return true;
+  } else {
+    HandleError((int)req->result);
+
+    return false;
+  }
+}
+
+bool AsyncBlockReader::_HandleReadResponse(uv_fs_t* req) {
+  ssize_t bytesRead = req->result;
+  uv_file file = _openReq.result;
+
+  if (bytesRead == 0) {
+    uv_fs_t close_req;
+
+    // synchronous
+    uv_fs_close(req->loop, &close_req, file, nullptr);
+
+    OnEnd();
+
+    return false;
+  } else if (bytesRead > 0) {
+    OnBlock((uint8_t*)_uvBuffer.base, (size_t)bytesRead);
+
+    int64_t reqOffset;
+    if (_readFromBeginning) {
+      reqOffset = -1;
+    } else {
+      _fileOffset += bytesRead;
+      reqOffset = _fileOffset;
+    }
+
+    _bytesRead += bytesRead;
+    _uvBuffer.len = std::min(_length - _bytesRead, BufferSize);
+
+    uv_fs_read(req->loop, &_readReq, file, &_uvBuffer, 1, reqOffset,
+               ReadCallback);
+
+    return true;
+  } else {
+    HandleError((int)bytesRead);
+    return false;
+  }
+}
+
+void AsyncBlockReader::HandleError(int errorCode) {
+  OnError(uv_strerror(errorCode));
+}
+
+void AsyncBlockReader::Schedule(uv_loop_t* loop, const char* path) {
+  _openReq.data = this;
+  _openInitialized = true;
+
+  uv_fs_open(uv_default_loop(), &_openReq, path, O_RDONLY, 0, OpenCallback);
+}

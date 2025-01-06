@@ -72,14 +72,20 @@ export async function run(): Promise<Bench> {
     };
 
     bench
-      .add(`all map (${name})`, () => {
+      .add(`allnative map (${name})`, () => {
         allnative.xxhash3.directoryToMap(mapOptions);
       })
-      .add(`all block (${name})`, () => {
+      .add(`allnative block (${name})`, () => {
         allnative.xxhash3.directoryToMap(blockOptions);
       })
       .add(`min block (${name})`, () => {
         minimum.xxhash3.directoryToMap(blockOptions);
+      })
+      .add(`min block async (${name})`, () => {
+        return minimum.xxhash3.directoryToMapAsync(blockOptions);
+      })
+      .add(`allnative block async (${name})`, () => {
+        return minimum.xxhash3.directoryToMapAsync(blockOptions);
       });
   }
 

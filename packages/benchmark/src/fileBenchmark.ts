@@ -1,7 +1,7 @@
 import { Bench } from 'tinybench';
 import {
   xxhash3 as minXxHash3,
-  FileHashingOptions,
+  FileHashOptions,
 } from 'xxhash-bindings-min/index.ts';
 import { xxhash3 as allXxHash3 } from 'xxhash-bindings-allnative/index.ts';
 import { generateRandomFileContent } from './randomDataGenerator.js';
@@ -39,13 +39,13 @@ export async function run(): Promise<Bench> {
   for (const { name } of fileInfos) {
     const path = `${TEST_DATA_PATH}/${name}`;
 
-    const mapOptions: FileHashingOptions<number> = {
+    const mapOptions: FileHashOptions<number> = {
       path,
       seed: 1,
       preferMap: true,
     };
 
-    const blockOptions: FileHashingOptions<number> = {
+    const blockOptions: FileHashOptions<number> = {
       path,
       seed: 1,
       preferMap: false,

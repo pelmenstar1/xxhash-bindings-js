@@ -1,10 +1,11 @@
-#include <optional>
+#include <nan.h>
+
 #include <stdexcept>
 
 #include "exports.h"
+#include "fileHashWorker.h"
 #include "hashers.h"
 #include "helpers.h"
-#include "fileHashWorker.h"
 #include "platform/nativeString.h"
 #include "platform/platformError.h"
 #include "v8ObjectParser.h"
@@ -13,7 +14,7 @@
 template <int Variant>
 void FileHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  
+
   try {
     v8::Local<v8::Object> options;
     switch (info.Length()) {
@@ -30,11 +31,10 @@ void FileHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     V8_PARSE_PROPERTY(options, offset, size_t, 0);
     V8_PARSE_PROPERTY(options, length, size_t, SIZE_MAX);
 
-    NativeString nativePath = V8StringToNative(isolate, pathProp);
-    FileHashingContext<Variant> hashingContext(nativePath.c_str(), offsetProp,
-                                               lengthProp, seedProp);
+    auto nativePath = V8StringToCString<NativeChar>(isolate, pathProp);
+    HashWorkerContext<> hashContext(nativePath.c_str(), offsetProp, lengthProp);
 
-    XxResult<Variant> result = HashFile(hashingContext, preferMapProp);
+    auto result = HashFile<Variant>(hashContext, seedProp, preferMapProp);
 
     info.GetReturnValue().Set(
         V8ValueConverter<XxResult<Variant>>::ConvertBack(isolate, result));
@@ -45,4 +45,96 @@ void FileHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   }
 }
 
+template <int Variant>
+void FileHashAsync(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  class AsyncBlockReaderImpl : public AsyncBlockReader {
+   public:
+    AsyncBlockReaderImpl(v8::Global<v8::Function>& callback,
+                         XxSeed<Variant> seed, size_t fileOffset, size_t length)
+        : AsyncBlockReader(fileOffset, length),
+          _hashState(seed),
+          _callback(std::move(callback)) {}
+
+    void OnBlock(const uint8_t* data, size_t length) override {
+      _hashState.Update(data, length);
+    }
+
+    void OnEnd() override {
+      auto isolate = v8::Isolate::GetCurrent();
+      v8::HandleScope scope(isolate);
+      auto result = _hashState.GetResult();
+
+      auto v8Result =
+          V8ValueConverter<XxResult<Variant>>::ConvertBack(isolate, result);
+
+      ExecuteCallback(isolate, v8::Undefined(isolate), v8Result);
+    }
+
+    void OnError(const char* message) override {
+      auto isolate = v8::Isolate::GetCurrent();
+      v8::HandleScope scope(isolate);
+
+      auto v8Message =
+          v8::String::NewFromUtf8(isolate, message).ToLocalChecked();
+      auto v8Error = v8::Exception::Error(v8Message);
+
+      ExecuteCallback(isolate, v8Error, v8::Undefined(isolate));
+    }
+
+   private:
+    XxHashState<Variant> _hashState;
+    v8::Global<v8::Function> _callback;
+
+    void ExecuteCallback(v8::Isolate* isolate, v8::Local<v8::Value> error,
+                         v8::Local<v8::Value> result) {
+      Nan::AsyncResource resource("FileHash");
+
+      const int argc = 2;
+      v8::Local<v8::Value> argv[argc];
+      argv[0] = error;
+      argv[1] = result;
+
+      resource.runInAsyncScope(v8::Object::New(isolate), _callback.Get(isolate),
+                               argc, argv);
+    }
+  };
+
+  v8::Isolate* isolate = info.GetIsolate();
+
+  if (info.Length() != 2) {
+    isolate->ThrowError("Wrong number of arguments");
+    return;
+  }
+
+  v8::Local<v8::Function> callback;
+  try {
+    callback =
+        V8ParseArgument<v8::Local<v8::Function>>(isolate, info[1], "callback");
+
+    auto options =
+        V8ParseArgument<v8::Local<v8::Object>>(isolate, info[0], "options");
+
+    V8_PARSE_PROPERTY(options, path, v8::Local<v8::String>);
+    V8_PARSE_PROPERTY(options, seed, XxSeed<Variant>, 0);
+    V8_PARSE_PROPERTY(options, preferMap, bool, false);
+    V8_PARSE_PROPERTY(options, offset, size_t, 0);
+    V8_PARSE_PROPERTY(options, length, size_t, SIZE_MAX);
+
+    auto nativePath = V8StringToCString<char>(isolate, pathProp);
+
+    v8::Global<v8::Function> globalCallback(isolate, callback);
+
+    AsyncBlockReaderImpl* impl = new AsyncBlockReaderImpl(
+        globalCallback, seedProp, offsetProp, lengthProp);
+    impl->Schedule(Nan::GetCurrentEventLoop(), nativePath.c_str());
+  } catch (const PlatformException& exc) {
+    ExecuteCallbackWithErrorOrThrow(isolate, callback, exc.WhatV8(isolate));
+  } catch (const std::exception& exc) {
+    auto v8What = v8::String::NewFromUtf8(isolate, exc.what()).ToLocalChecked();
+
+    ExecuteCallbackWithErrorOrThrow(isolate, callback, v8What);
+  }
+}
+
 INSTANTIATE_HASH_FUNCTION(FileHash)
+INSTANTIATE_HASH_FUNCTION(FileHashAsync)

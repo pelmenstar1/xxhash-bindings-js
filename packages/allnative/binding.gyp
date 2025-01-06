@@ -6,6 +6,8 @@
       "../../native/index.cpp",
       "../../native/fileHash.cpp",
       "../../native/directoryHash.cpp",
+      "../../native/directoryHashAsync.cpp",
+      "../../native/directoryHashUtils.cpp",
       "../../native/oneshotHash.cpp",
       "../../native/createHashState.cpp",
 
@@ -16,6 +18,7 @@
       "../../native/fileHashWorker.cpp",
      
       "../../native/platform/blockReader.cpp",
+      "../../native/platform/fullPathBuilder.cpp",
       "../../native/platform/memoryMap.cpp",
       "../../native/platform/platformError.cpp",
       "../../native/platform/directoryIterator.cpp",
@@ -23,16 +26,24 @@
     "include_dirs": [
       "<!(node -e \"require('nan')\")"
     ],
-    "cflags": ['-fexceptions', '-O2'],
-    "cflags_cc": ['-fexceptions', '-O2'],
     'conditions': [
       ['OS=="win"', { 
         'defines': [ '_HAS_EXCEPTIONS=1' ], 
          'msvs_settings': {
             'VCCLCompilerTool': { 'AdditionalOptions': ['/EHsc'], },
         },
-      }]
-    ]
+      }],
+    ],
+    "configurations": {
+      "Debug": {
+        "cflags": ['-fexceptions', '-O0'],
+        "cflags_cc": ['-fexceptions', '-O0'],
+      },
+      "Release": {
+        "cflags": ['-fexceptions', '-O2'],
+        "cflags_cc": ['-fexceptions', '-O2'],
+      }
+    }
   }
 ]
 }

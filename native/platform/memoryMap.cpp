@@ -5,10 +5,10 @@
 #include <utility>
 
 #if unix
+#include <dirent.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <dirent.h>
 #include <sys/types.h>
 #include <unistd.h>
 #endif
@@ -17,7 +17,8 @@
 
 #undef min
 
-bool MemoryMappedFile::Open(const NativeChar* path, size_t offset, size_t length) {
+bool MemoryMappedFile::Open(const NativeChar* path, size_t offset,
+                            size_t length) {
   auto handle = FileHandle::OpenRead(path);
   CHECK_PLATFORM_ERROR(handle.IsInvalid())
 
@@ -32,8 +33,7 @@ bool MemoryMappedFile::Open(const NativeChar* path, size_t offset, size_t length
     return true;
   }
 
-  _fileMapping =
-      CreateFileMappingW(handle, NULL, PAGE_READONLY, 0, 0, NULL);
+  _fileMapping = CreateFileMappingW(handle, NULL, PAGE_READONLY, 0, 0, NULL);
   CHECK_PLATFORM_ERROR(_fileMapping == NULL)
 
   void* mapAddress = MapViewOfFile(_fileMapping, FILE_MAP_READ, 0, 0, 0);

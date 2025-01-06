@@ -23,9 +23,15 @@ class PlatformException : public std::exception {
   virtual char const* what() const noexcept override { return "System error"; }
 
   v8::Local<v8::String> WhatV8(v8::Isolate* isolate) const;
+
+  ErrorDesc ErrorCode() const { return _error; }
+
+  static v8::Local<v8::String> FormatErrorToV8String(v8::Isolate* isolate, ErrorDesc error);
 };
 
-void ThrowPlatformException();
+
+
+[[noreturn]] void ThrowPlatformException();
 
 #define CHECK_PLATFORM_ERROR(expr) \
   if (expr) {                      \

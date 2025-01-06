@@ -1,19 +1,20 @@
 import { beforeAll, expect, test } from 'vitest';
 import { setupDirectories, setupTests } from './directoryTestUtils';
-import type { DirectoryHashingOptions } from 'xxhash-bindings-min';
-import { libs, testData, variantNames } from './utils';
+import type { BaseSyncDirectoryHashOptions } from 'xxhash-bindings-min';
+import { libs, testData, variantNames } from '@/utils';
 
 beforeAll(setupDirectories);
 setupTests((lib, name) => {
-  return (options: DirectoryHashingOptions<number | bigint>) => {
-    const directory = lib[name].directory as (
-      options: DirectoryHashingOptions<number | bigint> & {
+  return async (options: BaseSyncDirectoryHashOptions<number | bigint>) => {
+    const directoryAsync = lib[name].directoryAsync as (
+      options: BaseSyncDirectoryHashOptions<number | bigint> & {
         onFile: (name: string, hash: number | bigint) => void;
       },
-    ) => void;
+    ) => Promise<void>;
+
     const resultMap = new Map<string, number | bigint>();
 
-    directory({
+    await directoryAsync({
       ...options,
       onFile: (name: string, result: number | bigint) => {
         resultMap.set(name, result);
@@ -26,19 +27,19 @@ setupTests((lib, name) => {
 
 test.each(variantNames.map((name) => [name]))(
   'directory onFile throws',
-  (name) => {
+  async (name) => {
     for (const lib of libs) {
-      const { directory } = lib[name];
+      const { directoryAsync } = lib[name];
       const error = new Error('custom message');
 
-      expect(() =>
-        directory({
+      await expect(() =>
+        directoryAsync({
           path: testData('dir'),
           onFile: () => {
             throw error;
           },
         }),
-      ).toThrowError(error);
+      ).rejects.toBeTruthy();
     }
   },
 );

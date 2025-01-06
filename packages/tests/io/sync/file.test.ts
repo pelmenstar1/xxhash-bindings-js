@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 import fs from 'fs';
-import { VariantName, libs, testData, variantNames } from './utils';
+import { VariantName, libs, testData, variantNames } from '@/utils';
 
 const preferMapValues = [undefined, false, true];
 

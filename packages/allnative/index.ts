@@ -1,29 +1,23 @@
 import { createRequire } from 'module';
-import type { UInt64, XxHashVariant } from 'xxhash-bindings-types';
+import type {
+  AsyncDirectoryHashOptions,
+  BaseAsyncDirectoryHashOptions,
+  FileHashOptions,
+  UInt64,
+  XxHashVariant,
+} from 'xxhash-bindings-types';
 
 export type {
-  DirectoryHashingOptions,
-  FileHashingOptions,
+  FileHashOptions,
+  BaseDirectoryHashOptions,
+  BaseSyncDirectoryHashOptions,
+  BaseAsyncDirectoryHashOptions,
+  AsyncDirectoryHashOptions,
+  SyncDirectoryHashOptions,
   XxHashState,
   XxHashVariant,
   XxVariantName,
 } from 'xxhash-bindings-types';
-
-function xxHashVariant<S, H extends UInt64>(
-  oneshot: XxHashVariant<S, H>['oneshot'],
-  createState: XxHashVariant<S, H>['createState'],
-  file: XxHashVariant<S, H>['file'],
-  directory: XxHashVariant<S, H>['directory'],
-  directoryToMap: XxHashVariant<S, H>['directoryToMap'],
-): XxHashVariant<S, H> {
-  return {
-    oneshot,
-    createState,
-    file,
-    directory,
-    directoryToMap,
-  };
-}
 
 let addon: any;
 const require = createRequire(import.meta.url);
@@ -34,36 +28,75 @@ try {
   addon = require('./build/Debug/xxhash-allnative.node');
 }
 
-export const xxhash32 = xxHashVariant<number, number>(
-  addon.xxhash32_oneshot,
-  addon.xxhash32_createState,
-  addon.xxhash32_file,
-  addon.xxhash32_directory,
-  addon.xxhash32_directoryToMap,
-);
+type AsyncBase<Arg, Result> = (
+  arg: Arg,
+  callback: (error: Error | undefined, value: Result | undefined) => void,
+) => void;
 
-export const xxhash64 = xxHashVariant<UInt64, bigint>(
-  addon.xxhash64_oneshot,
-  addon.xxhash64_createState,
-  addon.xxhash64_file,
-  addon.xxhash64_directory,
-  addon.xxhash64_directoryToMap,
-);
+type FileAsyncBase<S, H extends UInt64> = AsyncBase<FileHashOptions<S>, H>;
 
-export const xxhash3 = xxHashVariant<UInt64, bigint>(
-  addon.xxhash3_oneshot,
-  addon.xxhash3_createState,
-  addon.xxhash3_file,
-  addon.xxhash3_directory,
-  addon.xxhash3_directoryToMap,
-);
+type DirectoryAsyncBase<S, H extends UInt64> = AsyncBase<
+  AsyncDirectoryHashOptions<S, H>,
+  undefined
+>;
 
-export const xxhash3_128 = xxHashVariant<UInt64, bigint>(
-  addon.xxhash3_128_oneshot,
-  addon.xxhash3_128_createState,
-  addon.xxhash3_128_file,
-  addon.xxhash3_128_directory,
-  addon.xxhash3_128_directoryToMap,
-);
+type DirectoryToMapAsyncBase<S, H extends UInt64> = AsyncBase<
+  BaseAsyncDirectoryHashOptions<S>,
+  Map<string, H>
+>;
+
+function xxHashVariant<S, H extends UInt64>(name: string): XxHashVariant<S, H> {
+  const fileAsyncBase: FileAsyncBase<S, H> = addon[`${name}_fileAsync`];
+  const directoryAsyncBase: DirectoryAsyncBase<S, H> =
+    addon[`${name}_directoryAsync`];
+  const directoryToMapAsyncBase: DirectoryToMapAsyncBase<S, H> =
+    addon[`${name}_directoryToMapAsync`];
+
+  return {
+    oneshot: addon[`${name}_oneshot`],
+    createState: addon[`${name}_createState`],
+    file: addon[`${name}_file`],
+    fileAsync: (options) => {
+      return new Promise((resolve, reject) => {
+        fileAsyncBase(options, (error, value) => {
+          if (error === undefined) {
+            resolve(value);
+          } else {
+            reject(error);
+          }
+        });
+      });
+    },
+    directory: addon[`${name}_directory`],
+    directoryAsync: (options) => {
+      return new Promise((resolve, reject) => {
+        directoryAsyncBase(options, (error) => {
+          if (error == undefined) {
+            resolve();
+          } else {
+            reject(error);
+          }
+        });
+      });
+    },
+    directoryToMap: addon[`${name}_directoryToMap`],
+    directoryToMapAsync: (options) => {
+      return new Promise((resolve, reject) => {
+        directoryToMapAsyncBase(options, (error, result) => {
+          if (error === undefined) {
+            resolve(result);
+          } else {
+            reject(error);
+          }
+        });
+      });
+    },
+  };
+}
+
+export const xxhash32 = xxHashVariant<number, number>('xxhash32');
+export const xxhash64 = xxHashVariant<UInt64, bigint>('xxhash64');
+export const xxhash3 = xxHashVariant<UInt64, bigint>('xxhash3');
+export const xxhash3_128 = xxHashVariant<UInt64, bigint>('xxhash3_128');
 
 export default { xxhash32, xxhash64, xxhash3, xxhash3_128 };

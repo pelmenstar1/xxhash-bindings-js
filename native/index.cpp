@@ -11,13 +11,11 @@ struct ExportedFunctionToken {
   Nan::FunctionCallback function;
 };
 
-#define FUNCTION_SET_ITEM(name, func, variant) {name, func<variant>}
-
-#define FUNCTION_SET(suffix, function)                       \
-  FUNCTION_SET_ITEM("xxhash32_" #suffix, function, H32),     \
-      FUNCTION_SET_ITEM("xxhash64_" #suffix, function, H64), \
-      FUNCTION_SET_ITEM("xxhash3_" #suffix, function, H3),   \
-      FUNCTION_SET_ITEM("xxhash3_128_" #suffix, function, H3_128)
+#define FUNCTION_SET(suffix, function)   \
+  {"xxhash32_" #suffix, function<H32> }, \
+  {"xxhash64_" #suffix, function<H64> }, \
+  {"xxhash3_" #suffix, function<H3> },   \
+  {"xxhash3_128_" #suffix, function<H3_128> }
 
 void Init(v8::Local<v8::Object> exports) {
   v8::Local<v8::Context> context =
@@ -32,7 +30,11 @@ void Init(v8::Local<v8::Object> exports) {
 #ifndef XXHASH_BINDINGS_MIN
       FUNCTION_SET(file, FileHash),
       FUNCTION_SET(directory, DirectoryHash),
-      FUNCTION_SET(directoryToMap, DirectoryToMapHash)
+      FUNCTION_SET(directoryToMap, DirectoryToMapHash),
+
+      FUNCTION_SET(fileAsync, FileHashAsync),
+      FUNCTION_SET(directoryAsync, DirectoryHashAsync),
+      FUNCTION_SET(directoryToMapAsync, DirectoryToMapHashAsync)
 #endif
   };
 

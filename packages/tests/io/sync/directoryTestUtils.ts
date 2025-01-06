@@ -1,4 +1,3 @@
-import { promises as fs } from 'fs';
 import {
   Lib,
   libs,
@@ -6,35 +5,17 @@ import {
   testData,
   VariantName,
   variantNames,
-} from './utils';
+} from '@/utils';
 import { expect, test, vi } from 'vitest';
 import { fail } from 'assert';
-
-const PATH_SUFFIXES =
-  process.platform == 'win32' ? ['', '/', '//', '\\', '\\\\'] : ['', '/', '//'];
-
-export async function setupDirectories() {
-  await Promise.all(
-    ['dir', 'empty_dir', 'dir/empty_dir', 'dir/dir2'].map((p) =>
-      fs.mkdir(`${TEST_DATA_PATH}/${p}`, { recursive: true }),
-    ),
-  );
-
-  await Promise.all(
-    [
-      ['file1.txt', 'content'],
-      ['file2.txt', 'content 2'],
-      ['dir2/file3.txt', 'content 3'],
-    ].map(([p, content]) =>
-      fs.writeFile(`${TEST_DATA_PATH}/dir/${p}`, content, { encoding: 'utf8' }),
-    ),
-  );
-}
+import { PATH_SUFFIXES } from '../directoryUtils';
 
 type DirectoryToMapFactory = (
   lib: Lib,
   name: VariantName,
 ) => Lib[VariantName]['directoryToMap'];
+
+export { setupDirectories } from '../directoryUtils';
 
 export function setupTests(directoryToMapFactory: DirectoryToMapFactory) {
   function forEachOptions(

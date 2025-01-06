@@ -6,7 +6,7 @@
 #include <windows.h>
 #endif
 
-v8::MaybeLocal<v8::String> UnknownSystemError(v8::Isolate* isolate) {
+v8::Local<v8::String> UnknownSystemError(v8::Isolate* isolate) {
   return v8::String::NewFromUtf8Literal(isolate, "Unknown system error");
 }
 
@@ -21,6 +21,11 @@ void ThrowPlatformException() {
 }
 
 v8::Local<v8::String> PlatformException::WhatV8(v8::Isolate* isolate) const {
+  return FormatErrorToV8String(isolate, _error);
+}
+
+v8::Local<v8::String> PlatformException::FormatErrorToV8String(
+    v8::Isolate* isolate, ErrorDesc error) {
   v8::MaybeLocal<v8::String> message;
 
 #ifdef _WIN32
@@ -28,7 +33,7 @@ v8::Local<v8::String> PlatformException::WhatV8(v8::Isolate* isolate) const {
   DWORD messageLength = FormatMessageW(
       FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
           FORMAT_MESSAGE_IGNORE_INSERTS,
-      NULL, _error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+      NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
       reinterpret_cast<LPWSTR>(&messageBuffer), 0, NULL);
 
   if (messageLength == 0) {
@@ -41,7 +46,7 @@ v8::Local<v8::String> PlatformException::WhatV8(v8::Isolate* isolate) const {
 
   LocalFree(messageBuffer);
 #else
-  const char* errorDesc = strerror(_error);
+  const char* errorDesc = strerror(error);
 
   if (errorDesc == nullptr) {
     message = UnknownSystemError(isolate);
@@ -55,6 +60,6 @@ v8::Local<v8::String> PlatformException::WhatV8(v8::Isolate* isolate) const {
   if (message.ToLocal(&messageValue)) {
     return messageValue;
   } else {
-    return UnknownSystemError(isolate).ToLocalChecked();
+    return UnknownSystemError(isolate);
   }
 }
