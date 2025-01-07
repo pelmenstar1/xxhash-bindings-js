@@ -1,5 +1,3 @@
-import { beforeAll } from 'vitest';
-import { setupDirectories, setupTests } from './directoryTestUtils';
+import { setupTests } from './directoryTestUtils';
 
-beforeAll(setupDirectories);
 setupTests((lib, name) => lib[name].directoryToMapAsync);

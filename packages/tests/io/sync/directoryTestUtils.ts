@@ -15,8 +15,6 @@ type DirectoryToMapFactory = (
   name: VariantName,
 ) => Lib[VariantName]['directoryToMap'];
 
-export { setupDirectories } from '../directoryUtils';
-
 export function setupTests(directoryToMapFactory: DirectoryToMapFactory) {
   function forEachOptions(
     name: VariantName,

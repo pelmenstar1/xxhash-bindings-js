@@ -1,0 +1,19 @@
+{
+  "name": "xxhash-bindings",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "yarn workspace xxhash-bindings-tests vitest --run"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "workspaces": [
+    "packages/@types",
+    "packages/allnative",
+    "packages/minimum",
+    "packages/tests"
+  ],
+  "packageManager": "yarn@4.6.0"
+}

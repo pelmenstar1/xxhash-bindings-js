@@ -19,4 +19,7 @@ export default defineConfig({
   resolve: {
     alias,
   },
+  test: {
+    globalSetup: './globalSetup.ts',
+  },
 });

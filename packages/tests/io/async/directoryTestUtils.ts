@@ -10,8 +10,6 @@ import { expect, test, vi } from 'vitest';
 import { fail } from 'assert';
 import { PATH_SUFFIXES } from '../directoryUtils';
 
-export { setupDirectories } from '../directoryUtils';
-
 type DirectoryToMapFactory = (
   lib: Lib,
   name: VariantName,

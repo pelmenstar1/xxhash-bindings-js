@@ -1,9 +1,8 @@
-import { beforeAll, expect, test } from 'vitest';
-import { setupDirectories, setupTests } from './directoryTestUtils';
+import { expect, test } from 'vitest';
+import { setupTests } from './directoryTestUtils';
 import type { BaseSyncDirectoryHashOptions } from 'xxhash-bindings-min';
 import { libs, testData, variantNames } from '@/utils';
 
-beforeAll(setupDirectories);
 setupTests((lib, name) => {
   return async (options: BaseSyncDirectoryHashOptions<number | bigint>) => {
     const directoryAsync = lib[name].directoryAsync as (
