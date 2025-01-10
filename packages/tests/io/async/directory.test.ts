@@ -1,27 +1,26 @@
 import { expect, test } from 'vitest';
-import { setupTests } from './directoryTestUtils';
-import type { BaseSyncDirectoryHashOptions } from 'xxhash-bindings-min';
 import { libs, testData, variantNames } from '@/utils';
+import { setupTests } from '../base/directory';
+import { expectToThrowAsyncFactory } from '../base/helpers';
 
-setupTests((lib, name) => {
-  return async (options: BaseSyncDirectoryHashOptions<number | bigint>) => {
-    const directoryAsync = lib[name].directoryAsync as (
-      options: BaseSyncDirectoryHashOptions<number | bigint> & {
-        onFile: (name: string, hash: number | bigint) => void;
-      },
-    ) => Promise<void>;
+setupTests({
+  getDirectoryFactory: (lib, name) => {
+    return async (options) => {
+      const directoryAsync = lib[name].directoryAsync;
 
-    const resultMap = new Map<string, number | bigint>();
+      const resultMap = new Map<string, number | bigint>();
 
-    await directoryAsync({
-      ...options,
-      onFile: (name: string, result: number | bigint) => {
-        resultMap.set(name, result);
-      },
-    });
+      await directoryAsync({
+        ...options,
+        onFile: (name: string, result: number | bigint) => {
+          resultMap.set(name, result);
+        },
+      });
 
-    return resultMap as Map<string, number>;
-  };
+      return resultMap as Map<string, number>;
+    };
+  },
+  expectToThrowError: expectToThrowAsyncFactory(),
 });
 
 test.each(variantNames.map((name) => [name]))(

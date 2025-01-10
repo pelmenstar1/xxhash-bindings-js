@@ -1,3 +1,7 @@
-import { setupTests } from './directoryTestUtils';
+import { setupTests } from '../base/directory';
+import { expectToThrowSyncFactory, syncToAsync } from '../base/helpers';
 
-setupTests((lib, name) => lib[name].directoryToMap);
+setupTests({
+  getDirectoryFactory: (lib, name) => syncToAsync(lib[name].directoryToMap),
+  expectToThrowError: expectToThrowSyncFactory(),
+});

@@ -1,27 +1,26 @@
 import { expect, test } from 'vitest';
-import { setupTests } from './directoryTestUtils';
-import type { BaseSyncDirectoryHashOptions } from 'xxhash-bindings-min';
 import { libs, testData, variantNames } from '../../utils';
+import { setupTests } from '../base/directory';
+import { expectToThrowSyncFactory } from '../base/helpers';
 
-setupTests((lib, name) => {
-  return (options: BaseSyncDirectoryHashOptions<number | bigint>) => {
-    const directory = lib[name].directory as (
-      options: BaseSyncDirectoryHashOptions<number | bigint> & {
-        onFile: (name: string, hash: number | bigint) => void;
-      },
-    ) => void;
+setupTests({
+  getDirectoryFactory: (lib, name) => {
+    return (options) => {
+      const directory = lib[name].directory;
 
-    const resultMap = new Map<string, number | bigint>();
+      const resultMap = new Map<string, number | bigint>();
 
-    directory({
-      ...options,
-      onFile: (name: string, result: number | bigint) => {
-        resultMap.set(name, result);
-      },
-    });
+      directory({
+        ...options,
+        onFile: (name: string, result: number | bigint) => {
+          resultMap.set(name, result);
+        },
+      });
 
-    return resultMap as Map<string, number>;
-  };
+      return Promise.resolve(resultMap);
+    };
+  },
+  expectToThrowError: expectToThrowSyncFactory(),
 });
 
 test.each(variantNames.map((name) => [name]))(
