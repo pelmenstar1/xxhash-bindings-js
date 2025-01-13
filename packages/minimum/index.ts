@@ -76,6 +76,34 @@ function checkAcceptFile(value: unknown): asserts value is Function {
     );
   }
 }
+
+function throwNonNegativeInt(name: string): never {
+  throw new Error(
+    `"${name}" parameter is expected to be non-negative integer or bigint`,
+  );
+}
+
+function checkOffsetOrLength(
+  value: unknown,
+  name: string,
+): asserts value is UInt64 {
+  if (value !== undefined) {
+    if (typeof value === 'number') {
+      if (!Number.isInteger(value) || value < 0) {
+        throwNonNegativeInt(name);
+      }
+    } else if (typeof value === 'bigint') {
+      if (value < 0) {
+        throwNonNegativeInt(name);
+      }
+    } else {
+      throw new TypeError(
+        `Expected typeof of the property "${name}" is number, bigint or undefined`,
+      );
+    }
+  }
+}
+
 function hashFile<H extends UInt64>(
   path: string,
   offset: UInt64 | undefined,
@@ -164,6 +192,8 @@ function createFileHasher<S, H extends UInt64>(
   seedCheck: SeedCheck<S>,
 ): XxHashVariant<S, H>['file'] {
   return ({ path, offset, length, seed, preferMap }) => {
+    checkOffsetOrLength(offset, 'offset');
+    checkOffsetOrLength(length, 'length');
     checkSeed(seed, seedCheck);
     checkPreferMap(preferMap);
 
@@ -179,6 +209,8 @@ function createFileAsyncHasher<S, H extends UInt64>(
   seedCheck: SeedCheck<S>,
 ): XxHashVariant<S, H>['fileAsync'] {
   return async ({ path, offset, length, seed, preferMap }) => {
+    checkOffsetOrLength(offset, 'offset');
+    checkOffsetOrLength(length, 'length');
     checkSeed(seed, seedCheck);
     checkPreferMap(preferMap);
 

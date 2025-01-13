@@ -30,6 +30,9 @@ class V8ValueParseContext {
 
   [[noreturn]]
   void InvalidType(const char* expectedType) const;
+
+  [[noreturn]]
+  void InvalidValue(const char* expectedValue) const;
 };
 
 template <typename T>

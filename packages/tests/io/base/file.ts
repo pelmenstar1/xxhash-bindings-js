@@ -3,6 +3,7 @@ import fs from 'fs';
 import { Lib, VariantName, testData, variantNames } from '@/utils';
 import minimum, { FileHashOptions, XxVariantName } from 'xxhash-bindings-min';
 import allnative from 'xxhash-bindings-allnative';
+import { numberWithBigint } from './helpers';
 
 const preferMapValues = [undefined, false, true];
 
@@ -105,22 +106,26 @@ function setupTestsOnLib(
     ])('file part no seed', async (name, offset, length, expected) => {
       const file = getFileFactory(lib, name);
 
-      for (const preferMap of preferMapValues) {
-        const baseOptions = {
-          path: testData('image1.png'),
-          preferMap,
-          offset,
-          length,
-        };
+      for (const offsetOrBigint of numberWithBigint(offset)) {
+        for (const lengthOrBigint of numberWithBigint(length)) {
+          for (const preferMap of preferMapValues) {
+            const baseOptions = {
+              path: testData('image1.png'),
+              preferMap,
+              offset: offsetOrBigint,
+              length: lengthOrBigint,
+            };
 
-        for (const options of [
-          baseOptions,
-          { ...baseOptions, seed: 0 },
-          { ...baseOptions, seed: undefined },
-        ]) {
-          const actual = await file(options);
+            for (const options of [
+              baseOptions,
+              { ...baseOptions, seed: 0 },
+              { ...baseOptions, seed: undefined },
+            ]) {
+              const actual = await file(options);
 
-          expect(actual).toBe(expected);
+              expect(actual).toBe(expected);
+            }
+          }
         }
       }
     });
@@ -246,5 +251,39 @@ function setupTestsOnLib(
         await expectToThrowError({ path: './.should_not_exist' }, file);
       },
     );
+
+    test.each([
+      [0.5, 1],
+      [0, 1.5],
+      [-1, -1],
+      [-1, 2],
+      [0, -1],
+      [Number.NaN, 1],
+      [1, Number.NaN],
+      [Number.POSITIVE_INFINITY, 2],
+      [Number.NEGATIVE_INFINITY, 3],
+      [2, Number.POSITIVE_INFINITY],
+      [3, Number.NEGATIVE_INFINITY],
+      [0n, -2n],
+      [-1n, -1n],
+      [-1n, 2n],
+      [0n, -1n],
+    ])('throws on invalid bounds', async (offset, length) => {
+      for (const name of variantNames) {
+        const file = getFileFactory(lib, name);
+
+        for (const preferMap of preferMapValues) {
+          await expectToThrowError(
+            {
+              path: testData('image1.png'),
+              offset,
+              length,
+              preferMap,
+            },
+            file,
+          );
+        }
+      }
+    });
   });
 }

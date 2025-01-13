@@ -34,3 +34,7 @@ export function syncToAsync<F extends UnknownFunction>(
 ): AsyncFunction<F> {
   return ((...args) => Promise.resolve(fn(...args))) as AsyncFunction<F>;
 }
+
+export function numberWithBigint(value: number): [number, bigint] {
+  return [value, BigInt(value)];
+}

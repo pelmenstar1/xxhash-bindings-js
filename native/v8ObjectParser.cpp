@@ -1,5 +1,7 @@
 #include "v8ObjectParser.h"
 
+#include <cmath>
+
 #define CONVERT_DECL(type)                                         \
   type V8ValueConverter<type>::Convert(v8::Isolate* isolate,       \
                                        v8::Local<v8::Value> value, \
@@ -22,14 +24,27 @@ SINGLE_CHECK_CONVERTER(v8::String, IsString, "string")
 SINGLE_CHECK_CONVERTER(v8::Object, IsObject, "object")
 SINGLE_CHECK_CONVERTER(v8::Function, IsFunction, "function")
 
+template <typename UInt, typename Int = std::make_signed_t<UInt>>
+UInt ToPositiveIntChecked(v8::Local<v8::Value> value,
+                          V8ValueParseContext context,
+                          const char* expectedType) {
+  double result = value.As<v8::Number>()->Value();
+
+  if (std::nearbyint(result) == result) {
+    auto intResult = (Int)result;
+
+    if (intResult >= 0) {
+      return (UInt)intResult;
+    }
+  }
+
+  context.InvalidValue(expectedType);
+}
+
 CONVERT_DECL(uint32_t) {
   if (value->IsNumber()) {
-    auto result = value->Uint32Value(isolate->GetCurrentContext());
-
-    uint32_t resultValue;
-    if (result.To(&resultValue)) {
-      return resultValue;
-    }
+    return ToPositiveIntChecked<uint32_t>(value, context,
+                                          "non-negative integer");
   }
 
   context.InvalidType("number");
@@ -41,18 +56,21 @@ CONVERT_BACK_DECL(uint32_t) {
 
 CONVERT_DECL(uint64_t) {
   if (value->IsNumber()) {
-    auto result = value->IntegerValue(isolate->GetCurrentContext());
-
-    int64_t resultValue;
-    if (result.To(&resultValue)) {
-      return (uint64_t)resultValue;
-    }
+    return ToPositiveIntChecked<uint64_t>(value, context,
+                                          "non-negative integer or bigint");
   } else if (value->IsBigInt()) {
     auto bigint = value->ToBigInt(isolate->GetCurrentContext());
 
     v8::Local<v8::BigInt> bigintValue;
     if (bigint.ToLocal(&bigintValue)) {
-      return bigintValue->Uint64Value();
+      bool lossless = true;
+      uint64_t result = bigintValue->Uint64Value(&lossless);
+
+      if (!lossless) {
+        context.InvalidValue("non-negative integer or bigint");
+      }
+
+      return result;
     }
   }
 
@@ -121,15 +139,33 @@ CONVERT_DECL(RawSizedArray) {
   context.InvalidType("Uint8Array");
 }
 
+template <typename... Args>
+std::string string_format(size_t maxSize, const char* format, Args... args) {
+  std::unique_ptr<char[]> buf(new char[maxSize]);
+  int size = std::snprintf(buf.get(), maxSize, format, args...);
+
+  return std::string(buf.get(), size);
+}
+
 void V8ValueParseContext::InvalidType(const char* expectedType) const {
   size_t bufferLength =
-      128 + strlen(_entity) + strlen(_name) + strlen(expectedType);
-  char* buffer = (char*)malloc(bufferLength);
+      64 + strlen(_entity) + strlen(_name) + strlen(expectedType);
   const char* undefinedMarker = _allowUndefined ? " or undefined" : "";
 
-  int n =
-      snprintf(buffer, bufferLength, "Expected type of the %s \"%s\" is %s%s",
-               _entity, _name, expectedType, undefinedMarker);
+  std::string message =
+      string_format(bufferLength, "Expected type of the %s \"%s\" is %s%s",
+                    _entity, _name, expectedType, undefinedMarker);
 
-  throw std::runtime_error(std::string(buffer, n));
+  throw std::runtime_error(message);
+}
+
+void V8ValueParseContext::InvalidValue(const char* expectedValue) const {
+  size_t bufferLength =
+      64 + strlen(_entity) + strlen(_name) + strlen(expectedValue);
+
+  std::string message =
+      string_format(bufferLength, "\"%s\" %s is expected to be %s", _name,
+                    _entity, expectedValue);
+
+  throw std::runtime_error(message);
 }
