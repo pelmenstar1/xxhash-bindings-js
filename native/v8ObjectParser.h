@@ -14,9 +14,6 @@ struct RawSizedArray {
   RawSizedArray(uint8_t* data, size_t length) : data(data), length(length) {}
 };
 
-template <typename T>
-struct V8ValueConverter {};
-
 class V8ValueParseContext {
  private:
   const char* _name;
@@ -33,6 +30,14 @@ class V8ValueParseContext {
 
   [[noreturn]]
   void InvalidValue(const char* expectedValue) const;
+};
+
+template <typename T>
+struct V8ValueConverter {
+  static T Convert(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                   const V8ValueParseContext& context);
+              
+  static v8::Local<v8::Value> ConvertBack(v8::Isolate* isolate, T value);
 };
 
 template <typename T>
@@ -93,21 +98,3 @@ T V8ParseProperty(v8::Isolate* isolate, v8::Local<v8::Object> object,
   name = V8ParseArgument<cType>(isolate, info[index], \
                                 #name CROSS_VA_COMMA(__VA_ARGS__))
 
-#define DEFINE_CONVERTER(type)                                                 \
-  template <>                                                                  \
-  struct V8ValueConverter<type> {                                              \
-    static type Convert(v8::Isolate* isolate, v8::Local<v8::Value> value,      \
-                        const V8ValueParseContext& context);                   \
-    static v8::Local<v8::Value> ConvertBack(v8::Isolate* isolate, type value); \
-  };
-
-DEFINE_CONVERTER(v8::Local<v8::String>)
-DEFINE_CONVERTER(v8::Local<v8::Object>)
-DEFINE_CONVERTER(v8::Local<v8::Function>)
-DEFINE_CONVERTER(uint32_t)
-DEFINE_CONVERTER(uint64_t)
-DEFINE_CONVERTER(bool)
-DEFINE_CONVERTER(XXH128_hash_t)
-DEFINE_CONVERTER(RawSizedArray)
-
-#undef DEFINE_CONVERTER

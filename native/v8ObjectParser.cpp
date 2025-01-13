@@ -3,11 +3,13 @@
 #include <cmath>
 
 #define CONVERT_DECL(type)                                         \
+  template <>                                                      \
   type V8ValueConverter<type>::Convert(v8::Isolate* isolate,       \
                                        v8::Local<v8::Value> value, \
                                        const V8ValueParseContext& context)
 
 #define CONVERT_BACK_DECL(type)                             \
+  template <>                                               \
   v8::Local<v8::Value> V8ValueConverter<type>::ConvertBack( \
       v8::Isolate* isolate, type value)
 
