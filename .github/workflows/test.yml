@@ -1,3 +1,5 @@
+name: Build & test
+
 on:
   push:
     branches:
@@ -13,9 +15,12 @@ jobs:
         version: [v20.18.3]
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.version }}
+      - name: Enable corepack
+        run: corepack enable
       - name: Install dependencies
         run: yarn install --immutable
       - name: Lint
