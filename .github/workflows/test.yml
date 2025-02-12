@@ -1,0 +1,25 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request: 
+    branches: 
+      - main
+
+jobs:
+  test-minimum:
+    strategy:
+      matrix:
+        version: [v20.18.3]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.version }}
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Lint
+        run: yarn lint
+      - name: Build
+        run: yarn build-min
+        
