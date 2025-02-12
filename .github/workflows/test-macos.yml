@@ -1,21 +1,15 @@
-name: Build & test
+name: Build & test (MacOS)
 
 on:
-  push:
-    branches:
-      - main
-  pull_request: 
-    branches: 
-      - main
+  workflow_dispatch:
 
 jobs:
   build-minimum:
     strategy:
       matrix:
-        version: [v20.18.3]
-        os: [windows-2022, ubuntu-22.04]  
+        version: [v20.18.3]  
 
-    runs-on: ${{ matrix.os }}
+    runs-on: [macos-13]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,9 +28,8 @@ jobs:
     strategy:
       matrix:
         version: [v20.18.3]
-        os: [windows-2022, ubuntu-22.04]  
 
-    runs-on: ${{ matrix.os }}
+    runs-on: [macos-13]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
