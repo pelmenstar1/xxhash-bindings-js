@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  build-minimum:
+  test:
     strategy:
       matrix:
         version: [v20.18.3]
@@ -28,26 +28,8 @@ jobs:
       - name: Lint
         run: yarn lint
       - name: Build
-        run: yarn build-min
+        run: yarn build
+      - name: Test
+        run: yarn test
 
-  build-allnative:
-    strategy:
-      matrix:
-        version: [v20.18.3]
-        os: [windows-2022, ubuntu-22.04]  
-
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.version }} 
-      - name: Enable corepack
-        run: corepack enable
-      - name: Install dependencies
-        run: yarn install --immutable
-      - name: Lint
-        run: yarn lint
-      - name: Build
-        run: yarn build-allnative
         
