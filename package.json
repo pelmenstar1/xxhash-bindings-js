@@ -5,6 +5,9 @@
   "scripts": {
     "benchmark": "tsx ./packages/benchmark/src/index.ts",
     "lint": "eslint",
+    "build-min": "yarn workspace xxhash-bindings-min run build",
+    "build-allnative": "yarn workspace xxhash-bindings-allnative run build",
+    "build": "yarn build-min && yarn build-allnative",
     "test": "yarn workspace xxhash-bindings-tests vitest --run"
   },
   "devDependencies": {

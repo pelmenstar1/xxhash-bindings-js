@@ -7,6 +7,9 @@
   "license": "ISC",
   "description": "",
   "gypfile": true,
+  "scripts": {
+    "build": "tsc && node-gyp configure && node-gyp build"
+  },
   "dependencies": {
     "nan": "^2.22.0",
     "node-gyp": "^11.0.0"
