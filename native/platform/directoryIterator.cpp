@@ -6,7 +6,7 @@
 #include "fullPathBuilder.h"
 #include "platformError.h"
 
-#ifdef unix
+#if defined(__linux__) || defined(__APPLE__)
 #include <sys/stat.h>
 #endif
 

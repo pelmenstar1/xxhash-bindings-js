@@ -1,14 +1,12 @@
 {
-  "name": "xxhash-bindings",
+  "name": "xxhash-bindings-monorepo",
   "type": "module",
   "private": true,
   "scripts": {
-    "benchmark": "tsx ./packages/benchmark/src/index.ts",
+    "benchmark": "yarn workspace @xxhash-bindings/benchmark run benchmark",
     "lint": "eslint",
-    "build-min": "yarn workspace xxhash-bindings-min run build",
-    "build-allnative": "yarn workspace xxhash-bindings-allnative run build",
-    "build": "yarn build-min && yarn build-allnative",
-    "test": "yarn workspace xxhash-bindings-tests vitest --run"
+    "build": "yarn workspace @xxhash-bindings/build-library run build",
+    "test": "yarn workspace @xxhash-bindings/tests vitest --run"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
@@ -22,9 +20,8 @@
     "typescript-eslint": "^8.18.0"
   },
   "workspaces": [
-    "packages/@types",
-    "packages/allnative",
-    "packages/minimum",
+    "packages/library",
+    "packages/build-library",
     "packages/benchmark",
     "packages/tests"
   ],

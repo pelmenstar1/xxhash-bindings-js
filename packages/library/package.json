@@ -1,8 +1,9 @@
 {
-  "name": "xxhash-bindings-allnative",
+  "name": "xxhash-bindings",
   "type": "module",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "author": "",
   "license": "ISC",
   "description": "",
@@ -16,7 +17,9 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
-    "typescript": "^5.7.2",
-    "xxhash-bindings-types": "workspace:^"
-  }
+    "typescript": "^5.7.2"
+  },
+  "files": [
+    "/dist"
+  ]
 }

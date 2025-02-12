@@ -1,9 +1,10 @@
 import { test, expect, describe } from 'vitest';
 import fs from 'fs';
-import { Lib, VariantName, testData, variantNames } from '@/utils';
-import minimum, { FileHashOptions, XxVariantName } from 'xxhash-bindings-min';
-import allnative from 'xxhash-bindings-allnative';
+import lib, { FileHashOptions, XxVariantName } from 'xxhash-bindings';
 import { numberWithBigint } from './helpers';
+import { testData, variantNames } from '@/utils';
+
+type Lib = typeof lib;
 
 const preferMapValues = [undefined, false, true];
 
@@ -12,7 +13,7 @@ type GenericFileHasher = (
 ) => Promise<number | bigint>;
 
 type SetupTestsContext = {
-  getFileFactory: (lib: Lib, variant: XxVariantName) => GenericFileHasher;
+  getFileFactory: (variant: XxVariantName) => GenericFileHasher;
 
   expectToThrowError(
     options: FileHashOptions<number>,
@@ -21,24 +22,18 @@ type SetupTestsContext = {
   ): Promise<void>;
 };
 
-export function setupTests(context: SetupTestsContext) {
-  setupTestsOnLib(context, minimum, 'minimum');
-  setupTestsOnLib(context, allnative, 'allnative');
-}
-
-function setupTestsOnLib(
-  { getFileFactory, expectToThrowError }: SetupTestsContext,
-  lib: Lib,
-  libName: string,
-) {
-  describe(`${libName} file`, () => {
-    test.each<[VariantName, number | bigint]>([
+export function setupTests({
+  getFileFactory,
+  expectToThrowError,
+}: SetupTestsContext) {
+  describe(`file`, () => {
+    test.each<[XxVariantName, number | bigint]>([
       ['xxhash32', 52811677],
       ['xxhash64', BigInt('18153045472420481988')],
       ['xxhash3', BigInt('12531405323377630900')],
       ['xxhash3_128', BigInt('193898327962634967863812790837365759668')],
     ])('no seed', async (name, expected) => {
-      const file = getFileFactory(lib, name);
+      const file = getFileFactory(name);
 
       for (const preferMap of preferMapValues) {
         const baseOptions = { path: testData('image1.png'), preferMap };
@@ -55,7 +50,7 @@ function setupTestsOnLib(
       }
     });
 
-    test.each<[VariantName, number, number, number | bigint]>([
+    test.each<[XxVariantName, number, number, number | bigint]>([
       ['xxhash32', 0, 0, 46947589],
       ['xxhash32', 10_000_000_000, 10, 46947589],
       ['xxhash32', 0, 100, 3233835924],
@@ -104,7 +99,7 @@ function setupTestsOnLib(
         BigInt('193898327962634967863812790837365759668'),
       ],
     ])('file part no seed', async (name, offset, length, expected) => {
-      const file = getFileFactory(lib, name);
+      const file = getFileFactory(name);
 
       for (const offsetOrBigint of numberWithBigint(offset)) {
         for (const lengthOrBigint of numberWithBigint(length)) {
@@ -130,13 +125,13 @@ function setupTestsOnLib(
       }
     });
 
-    test.each<[VariantName, number | bigint]>([
+    test.each<[XxVariantName, number | bigint]>([
       ['xxhash32', 1945663033],
       ['xxhash64', BigInt('17740802669433987345')],
       ['xxhash3', BigInt('8310716519890529791')],
       ['xxhash3_128', BigInt('132161492315031615344357334049880780287')],
     ])('with seed', async (name, expected) => {
-      const file = getFileFactory(lib, name);
+      const file = getFileFactory(name);
 
       for (const preferMap of preferMapValues) {
         const actual = await file({
@@ -155,7 +150,7 @@ function setupTestsOnLib(
       ['xxhash3', BigInt('3244421341483603138')],
       ['xxhash3_128', BigInt('204254712233039002205064565430793619839')],
     ])('empty file no seed', async (name, expected) => {
-      const file = getFileFactory(lib, name);
+      const file = getFileFactory(name);
 
       for (const preferMap of preferMapValues) {
         const actual = await file({ path: testData('emptyfile'), preferMap });
@@ -170,7 +165,7 @@ function setupTestsOnLib(
       ['xxhash3', BigInt('7335560060985733464')],
       ['xxhash3_128', BigInt('296734076633237196744344171427223105880')],
     ])('one byte file no seed', async (name, expected) => {
-      const file = getFileFactory(lib, name);
+      const file = getFileFactory(name);
 
       for (const preferMap of preferMapValues) {
         const actual = await file({ path: testData('onebyte'), preferMap });
@@ -187,7 +182,7 @@ function setupTestsOnLib(
         ['xxhash3', BigInt('665452966430363425')],
         ['xxhash3_128', BigInt('281489807592584962896215940306331225889')],
       ])('/dev/zero test', async (name, expected) => {
-      const file = getFileFactory(lib, name);
+      const file = getFileFactory(name);
 
       for (const preferMap of preferMapValues) {
         const actual = await file({
@@ -203,19 +198,19 @@ function setupTestsOnLib(
     test.each(variantNames.map((name) => [name]))(
       'throws on invalid path',
       async (name) => {
-        const file = getFileFactory(lib, name);
+        const file = getFileFactory(name);
 
         await expectToThrowError({ path: 123 as unknown as string }, file);
       },
     );
 
-    test.each<[VariantName, string]>([
+    test.each<[XxVariantName, string]>([
       ['xxhash32', 'number or undefined'],
       ['xxhash64', 'number, bigint or undefined'],
       ['xxhash3', 'number, bigint or undefined'],
       ['xxhash3_128', 'number, bigint or undefined'],
     ])('throws on invalid seed', async (name, expected) => {
-      const file = getFileFactory(lib, name);
+      const file = getFileFactory(name);
 
       await expectToThrowError(
         { path: testData('image1.png'), seed: '1' as unknown as number },
@@ -227,7 +222,7 @@ function setupTestsOnLib(
     test.each(variantNames.map((name) => [name]))(
       'throws on invalid preferMap',
       async (name) => {
-        const file = getFileFactory(lib, name);
+        const file = getFileFactory(name);
 
         await expectToThrowError(
           {
@@ -246,7 +241,7 @@ function setupTestsOnLib(
     test.each(variantNames.map((name) => [name]))(
       'throws on non-existent path',
       async (name) => {
-        const file = getFileFactory(lib, name);
+        const file = getFileFactory(name);
 
         await expectToThrowError({ path: './.should_not_exist' }, file);
       },
@@ -270,7 +265,7 @@ function setupTestsOnLib(
       [0n, -1n],
     ])('throws on invalid bounds', async (offset, length) => {
       for (const name of variantNames) {
-        const file = getFileFactory(lib, name);
+        const file = getFileFactory(name);
 
         for (const preferMap of preferMapValues) {
           await expectToThrowError(

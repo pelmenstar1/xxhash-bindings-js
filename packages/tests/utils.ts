@@ -1,12 +1,5 @@
-import xxhashMin, { XxVariantName } from 'xxhash-bindings-min';
-import xxhashAll from 'xxhash-bindings-allnative';
-
 import path from 'path';
 
-export type Lib = typeof xxhashMin;
-export type VariantName = XxVariantName;
-
-export const libs = [xxhashMin, xxhashAll];
 export const variantNames = [
   'xxhash32',
   'xxhash64',

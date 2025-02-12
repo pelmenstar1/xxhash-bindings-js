@@ -1,18 +1,13 @@
-import {
-  Lib,
-  TEST_DATA_PATH,
-  testData,
-  VariantName,
-  variantNames,
-} from '@/utils';
+import { TEST_DATA_PATH, testData, variantNames } from '@/utils';
 import { describe, expect, test, vi } from 'vitest';
 import { fail } from 'assert';
-import minimum, {
+import lib, {
   BaseAsyncDirectoryHashOptions,
   BaseSyncDirectoryHashOptions,
   XxVariantName,
-} from 'xxhash-bindings-min';
-import allnative from 'xxhash-bindings-allnative';
+} from 'xxhash-bindings';
+
+type Lib = typeof lib;
 
 type GenericDirectoryOptions =
   | BaseSyncDirectoryHashOptions<number>
@@ -23,10 +18,7 @@ type GenericDirectoryHasher = (
 ) => Promise<Map<string, number | bigint>>;
 
 type SetupTestsContext = {
-  getDirectoryFactory: (
-    lib: Lib,
-    variant: XxVariantName,
-  ) => GenericDirectoryHasher;
+  getDirectoryFactory: (variant: XxVariantName) => GenericDirectoryHasher;
 
   expectToThrowError(
     options: GenericDirectoryOptions,
@@ -38,25 +30,19 @@ type SetupTestsContext = {
 const PATH_SUFFIXES =
   process.platform == 'win32' ? ['', '/', '//', '\\', '\\\\'] : ['', '/', '//'];
 
-export function setupTests(context: SetupTestsContext) {
-  setupTestsOnLib(context, minimum, 'minimum');
-  setupTestsOnLib(context, allnative, 'allnative');
-}
-
-export function setupTestsOnLib(
-  { getDirectoryFactory, expectToThrowError }: SetupTestsContext,
-  lib: Lib,
-  libName: string,
-) {
+export function setupTests({
+  getDirectoryFactory,
+  expectToThrowError,
+}: SetupTestsContext) {
   async function forEachOptions(
-    name: VariantName,
+    name: XxVariantName,
     dirName: string,
     block: (options: {
       directoryToMapAsync: GenericDirectoryHasher;
       path: string;
     }) => void | Promise<void>,
   ): Promise<void> {
-    const directoryToMapAsync = getDirectoryFactory(lib, name);
+    const directoryToMapAsync = getDirectoryFactory(name);
 
     for (const suffix of PATH_SUFFIXES) {
       const path = testData(`${dirName}${suffix}`);
@@ -65,7 +51,7 @@ export function setupTestsOnLib(
     }
   }
 
-  describe(libName, () => {
+  describe('directory', () => {
     test.each(variantNames.map((name) => [name]))('empty dir', (name) => {
       return forEachOptions(
         name,
@@ -83,7 +69,7 @@ export function setupTestsOnLib(
       );
     });
 
-    test.each<[VariantName, Record<string, number | bigint>]>([
+    test.each<[XxVariantName, Record<string, number | bigint>]>([
       ['xxhash32', { 'file1.txt': 2709547657, 'file2.txt': 2400679296 }],
       [
         'xxhash64',
@@ -136,7 +122,7 @@ export function setupTestsOnLib(
       );
     });
 
-    test.each<[VariantName, Record<string, number | bigint>]>([
+    test.each<[XxVariantName, Record<string, number | bigint>]>([
       ['xxhash32', { 'file1.txt': 2323014111, 'file2.txt': 4219041358 }],
       [
         'xxhash64',
@@ -263,7 +249,7 @@ export function setupTestsOnLib(
     test.each(variantNames.map((name) => [name]))(
       'dir acceptFile throwing',
       async (name) => {
-        const directoryToMap = getDirectoryFactory(lib, name);
+        const directoryToMap = getDirectoryFactory(name);
 
         const error = new Error('custom error message');
         const acceptFile = () => {
@@ -293,7 +279,7 @@ export function setupTestsOnLib(
           invalidPaths.push(`${TEST_DATA_PATH}\\`);
         }
 
-        const directoryToMapAsync = getDirectoryFactory(lib, name);
+        const directoryToMapAsync = getDirectoryFactory(name);
 
         for (const path of invalidPaths) {
           await expectToThrowError({ path }, directoryToMapAsync);
@@ -301,13 +287,13 @@ export function setupTestsOnLib(
       },
     );
 
-    test.each<[VariantName, string]>([
+    test.each<[XxVariantName, string]>([
       ['xxhash32', 'number or undefined'],
       ['xxhash64', 'number, bigint or undefined'],
       ['xxhash3', 'number, bigint or undefined'],
       ['xxhash3_128', 'number, bigint or undefined'],
     ])('throws on invalid seed', async (name, expected) => {
-      const directoryToMap = getDirectoryFactory(lib, name);
+      const directoryToMap = getDirectoryFactory(name);
 
       await expectToThrowError(
         { path: `${TEST_DATA_PATH}/dir`, seed: '1' as unknown as number },
@@ -319,7 +305,7 @@ export function setupTestsOnLib(
     test.each(variantNames.map((name) => [name]))(
       'throws on invalid acceptFile',
       async (name) => {
-        const directoryToMapAsync = getDirectoryFactory(lib, name);
+        const directoryToMapAsync = getDirectoryFactory(name);
 
         await expectToThrowError(
           {

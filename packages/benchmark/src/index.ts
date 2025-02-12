@@ -6,8 +6,6 @@ type BenchmarkModule = {
   run: () => Promise<Bench>;
 };
 
-const benchmarksPath: string[] = ['fileBenchmark', 'directoryBenchmark'];
-
 async function runBenchmark(module: BenchmarkModule) {
   const bench = await module.run();
   bench.addEventListener('cycle', ({ task }) => {
@@ -32,17 +30,9 @@ async function main() {
   }
 
   const specBenchName = argv[2];
-  const benchmarks: BenchmarkModule[] = await Promise.all(
-    benchmarksPath.map((path) => import(`./${path}.ts`)),
-  );
+  const module: BenchmarkModule = await import(`./${specBenchName}.ts`);
 
-  const module = benchmarks.find(({ name }) => name === specBenchName);
-
-  if (module === undefined) {
-    console.log('Cannot find benchmark with given name');
-  } else {
-    await runBenchmark(module);
-  }
+  await runBenchmark(module);
 }
 
 void main();

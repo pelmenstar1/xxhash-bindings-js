@@ -4,7 +4,7 @@
 #include <memory>
 #include <utility>
 
-#if unix
+#if defined(__linux__) || defined(__APPLE__)
 #include <dirent.h>
 #include <fcntl.h>
 #include <sys/mman.h>

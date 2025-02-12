@@ -27,7 +27,6 @@ void Init(v8::Local<v8::Object> exports) {
       FUNCTION_SET(oneshot, OneshotHash),
       FUNCTION_SET(createState, CreateHashState),
 
-#ifndef XXHASH_BINDINGS_MIN
       FUNCTION_SET(file, FileHash),
       FUNCTION_SET(directory, DirectoryHash),
       FUNCTION_SET(directoryToMap, DirectoryToMapHash),
@@ -35,7 +34,6 @@ void Init(v8::Local<v8::Object> exports) {
       FUNCTION_SET(fileAsync, FileHashAsync),
       FUNCTION_SET(directoryAsync, DirectoryHashAsync),
       FUNCTION_SET(directoryToMapAsync, DirectoryToMapHashAsync)
-#endif
   };
 
   for (auto& token : exportedFunctions) {

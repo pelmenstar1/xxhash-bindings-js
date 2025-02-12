@@ -1,7 +1,7 @@
 {
 "targets": [
   {
-    "target_name": "xxhash-allnative",
+    "target_name": "xxhash",
     "sources": [ 
       "../../native/index.cpp",
       "../../native/fileHash.cpp",

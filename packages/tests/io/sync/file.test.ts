@@ -1,7 +1,8 @@
 import { setupTests } from '../base/file';
 import { expectToThrowSyncFactory, syncToAsync } from '../base/helpers';
+import lib from 'xxhash-bindings';
 
 setupTests({
-  getFileFactory: (lib, name) => syncToAsync(lib[name].file),
+  getFileFactory: (name) => syncToAsync(lib[name].file),
   expectToThrowError: expectToThrowSyncFactory(),
 });

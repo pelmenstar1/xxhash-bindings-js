@@ -3,7 +3,7 @@ import fs from 'fs';
 import { generateRandomFileContent } from './randomDataGenerator.ts';
 
 import { MB, TEST_DATA_PATH } from './constants.ts';
-import { allnative, DirectoryHashingOptions, minimum } from './libs.ts';
+import { xxhash3 } from 'xxhash-bindings';
 
 export const name = 'directory';
 
@@ -59,33 +59,27 @@ export async function run(): Promise<Bench> {
   for (const { name } of dirInfos) {
     const path = `${TEST_DATA_PATH}/${name}`;
 
-    const mapOptions: DirectoryHashingOptions<number> = {
+    const mapOptions = {
       path,
       seed: 1,
       preferMap: true,
     };
 
-    const blockOptions: DirectoryHashingOptions<number> = {
+    const blockOptions = {
       path,
       seed: 1,
       preferMap: false,
     };
 
     bench
-      .add(`allnative map (${name})`, () => {
-        allnative.xxhash3.directoryToMap(mapOptions);
+      .add(`map (${name})`, () => {
+        xxhash3.directoryToMap(mapOptions);
       })
-      .add(`allnative block (${name})`, () => {
-        allnative.xxhash3.directoryToMap(blockOptions);
+      .add(`block (${name})`, () => {
+        xxhash3.directoryToMap(blockOptions);
       })
-      .add(`min block (${name})`, () => {
-        minimum.xxhash3.directoryToMap(blockOptions);
-      })
-      .add(`min block async (${name})`, () => {
-        return minimum.xxhash3.directoryToMapAsync(blockOptions);
-      })
-      .add(`allnative block async (${name})`, () => {
-        return minimum.xxhash3.directoryToMapAsync(blockOptions);
+      .add(`block async (${name})`, () => {
+        return xxhash3.directoryToMapAsync(blockOptions);
       });
   }
 
