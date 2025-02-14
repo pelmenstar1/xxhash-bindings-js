@@ -6,13 +6,17 @@
 template <int Variant>
 void CreateHashState(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   auto isolate = info.GetIsolate();
+  auto context = isolate->GetCurrentContext();
+
+  auto staticData = reinterpret_cast<V8HashStateObjectStaticData*>(
+      info.Data().As<v8::External>()->Value());
 
   try {
     v8::Local<v8::Value> seedArg =
         info.Length() > 0 ? info[0] : v8::Undefined(isolate).As<v8::Value>();
 
-    v8::MaybeLocal<v8::Object> result = V8HashStateObject<Variant>::NewInstance(
-        isolate->GetCurrentContext(), seedArg);
+    v8::MaybeLocal<v8::Object> result =
+        V8HashStateObject<Variant>::NewInstance(context, *staticData, seedArg);
 
     v8::Local<v8::Object> resultValue;
     if (result.ToLocal(&resultValue)) {

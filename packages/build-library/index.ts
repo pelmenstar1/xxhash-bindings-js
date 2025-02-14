@@ -20,7 +20,7 @@ function runCommand(command: string, args: string[]): Promise<void> {
 function parseOptions(): Set<string> {
   const result = new Set<string>();
 
-  for (const arg in process.argv.slice(2)) {
+  for (const arg of process.argv.slice(2)) {
     if (arg.startsWith('--')) {
       result.add(arg.slice(2));
     }
@@ -36,14 +36,12 @@ async function main() {
   process.chdir('../library');
 
   await runCommand('yarn', ['tsc']);
-  await runCommand('yarn', ['node-gyp', 'configure']);
   await runCommand('yarn', [
     'node-gyp',
-    'build',
-    '-j',
-    'max',
+    'configure',
     ...(debug ? ['--debug'] : []),
   ]);
+  await runCommand('yarn', ['node-gyp', 'build', '-j', 'max']);
 
   await fs.promises.cp(
     `./build/${debug ? 'Debug' : 'Release'}/xxhash.node`,

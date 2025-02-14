@@ -4,31 +4,34 @@
 #include "v8ObjectParser.h"
 #include "v8Utils.h"
 
-template <int Variant>
-Nan::Persistent<v8::Function> V8HashStateObject<Variant>::_constructor;
+V8HashStateObjectStaticData::V8HashStateObjectStaticData(
+    v8::Local<v8::Context> context) {
+  InitConstructor<H32>(context);
+  InitConstructor<H64>(context);
+  InitConstructor<H3>(context);
+  InitConstructor<H3_128>(context);
+
+  node::AddEnvironmentCleanupHook(context->GetIsolate(), DeleteInstance, this);
+}
 
 template <int Variant>
-void V8HashStateObject<Variant>::Init() {
-  auto context = Nan::GetCurrentContext();
+void V8HashStateObjectStaticData::InitConstructor(
+    v8::Local<v8::Context> context) {
+  using StateObject = V8HashStateObject<Variant>;
 
   Nan::HandleScope scope;
 
-  v8::Local<v8::FunctionTemplate> tpl = Nan::New<v8::FunctionTemplate>(New);
+  v8::Local<v8::FunctionTemplate> tpl =
+      Nan::New<v8::FunctionTemplate>(StateObject::New);
+      
   tpl->SetClassName(Nan::New("XxHashState").ToLocalChecked());
   tpl->InstanceTemplate()->SetInternalFieldCount(2);
 
-  Nan::SetPrototypeMethod(tpl, "update", Update);
-  Nan::SetPrototypeMethod(tpl, "reset", Reset);
-  Nan::SetPrototypeMethod(tpl, "result", GetResult);
+  Nan::SetPrototypeMethod(tpl, "update", StateObject::Update);
+  Nan::SetPrototypeMethod(tpl, "reset", StateObject::Reset);
+  Nan::SetPrototypeMethod(tpl, "result", StateObject::GetResult);
 
-  _constructor.Reset(tpl->GetFunction(context).ToLocalChecked());
-}
-
-void V8HashStateObjectManager::Init() {
-  V8HashStateObject<H32>::Init();
-  V8HashStateObject<H64>::Init();
-  V8HashStateObject<H3>::Init();
-  V8HashStateObject<H3_128>::Init();
+  _constructors[Variant].Reset(tpl->GetFunction(context).ToLocalChecked());
 }
 
 template <int Variant>
@@ -109,13 +112,15 @@ void V8HashStateObject<Variant>::GetResult(
 
 template <int Variant>
 v8::MaybeLocal<v8::Object> V8HashStateObject<Variant>::NewInstance(
-    v8::Local<v8::Context> context, v8::Local<v8::Value> seed) {
+    v8::Local<v8::Context> context,
+    const V8HashStateObjectStaticData& staticData, v8::Local<v8::Value> seed) {
   Nan::EscapableHandleScope scope;
 
   const unsigned argc = 1;
   v8::Local<v8::Value> argv[argc] = {seed};
 
-  v8::Local<v8::Function> cons = Nan::New<v8::Function>(_constructor);
+  v8::Local<v8::Function> cons =
+      Nan::New<v8::Function>(staticData.Get(Variant));
 
   auto instance = cons->NewInstance(context, argc, argv);
 

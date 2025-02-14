@@ -1,6 +1,7 @@
 #include <nan.h>
 
 #include <stdexcept>
+#include <limits>
 
 #include "exports.h"
 #include "fileHashWorker.h"
@@ -28,8 +29,8 @@ void FileHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     V8_PARSE_PROPERTY(options, path, v8::Local<v8::String>);
     V8_PARSE_PROPERTY(options, seed, XxSeed<Variant>, 0);
     V8_PARSE_PROPERTY(options, preferMap, bool, false);
-    V8_PARSE_PROPERTY(options, offset, size_t, 0);
-    V8_PARSE_PROPERTY(options, length, size_t, SIZE_MAX);
+    V8_PARSE_PROPERTY(options, offset, uint64_t, 0);
+    V8_PARSE_PROPERTY(options, length, uint64_t, std::numeric_limits<uint64_t>::max());
 
     auto nativePath = V8StringToCString<NativeChar>(isolate, pathProp);
     HashWorkerContext<> hashContext(nativePath.c_str(), offsetProp, lengthProp);
@@ -49,9 +50,11 @@ template <int Variant>
 void FileHashAsync(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   class AsyncBlockReaderImpl : public AsyncBlockReader {
    public:
-    AsyncBlockReaderImpl(v8::Global<v8::Function>& callback,
+    AsyncBlockReaderImpl(v8::Isolate* isolate,
+                         v8::Global<v8::Function>& callback,
                          XxSeed<Variant> seed, size_t fileOffset, size_t length)
         : AsyncBlockReader(fileOffset, length),
+          _isolate(isolate),
           _hashState(seed),
           _callback(std::move(callback)) {}
 
@@ -60,32 +63,36 @@ void FileHashAsync(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     }
 
     void OnEnd() override {
-      auto isolate = v8::Isolate::GetCurrent();
-      v8::HandleScope scope(isolate);
+      v8::Locker locker(_isolate);
+      v8::Isolate::Scope isolateScope(_isolate);
+      v8::HandleScope handleScope(_isolate);
+      
       auto result = _hashState.GetResult();
 
       auto v8Result =
-          V8ValueConverter<XxResult<Variant>>::ConvertBack(isolate, result);
+          V8ValueConverter<XxResult<Variant>>::ConvertBack(_isolate, result);
 
-      ExecuteCallback(isolate, v8::Undefined(isolate), v8Result);
+      ExecuteCallback(v8::Undefined(_isolate), v8Result);
     }
 
     void OnError(const char* message) override {
-      auto isolate = v8::Isolate::GetCurrent();
-      v8::HandleScope scope(isolate);
+      v8::Locker locker(_isolate);
+      v8::Isolate::Scope isolateScope(_isolate);
+      v8::HandleScope handleScope(_isolate);
 
       auto v8Message =
-          v8::String::NewFromUtf8(isolate, message).ToLocalChecked();
+          v8::String::NewFromUtf8(_isolate, message).ToLocalChecked();
       auto v8Error = v8::Exception::Error(v8Message);
 
-      ExecuteCallback(isolate, v8Error, v8::Undefined(isolate));
+      ExecuteCallback(v8Error, v8::Undefined(_isolate));
     }
 
    private:
+    v8::Isolate* _isolate;
     XxHashState<Variant> _hashState;
     v8::Global<v8::Function> _callback;
 
-    void ExecuteCallback(v8::Isolate* isolate, v8::Local<v8::Value> error,
+    void ExecuteCallback(v8::Local<v8::Value> error,
                          v8::Local<v8::Value> result) {
       Nan::AsyncResource resource("FileHash");
 
@@ -94,8 +101,8 @@ void FileHashAsync(const Nan::FunctionCallbackInfo<v8::Value>& info) {
       argv[0] = error;
       argv[1] = result;
 
-      resource.runInAsyncScope(v8::Object::New(isolate), _callback.Get(isolate),
-                               argc, argv);
+      resource.runInAsyncScope(v8::Object::New(_isolate),
+                               _callback.Get(_isolate), argc, argv);
     }
   };
 
@@ -125,7 +132,7 @@ void FileHashAsync(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     v8::Global<v8::Function> globalCallback(isolate, callback);
 
     AsyncBlockReaderImpl* impl = new AsyncBlockReaderImpl(
-        globalCallback, seedProp, offsetProp, lengthProp);
+        isolate, globalCallback, seedProp, offsetProp, lengthProp);
     impl->Schedule(Nan::GetCurrentEventLoop(), nativePath.c_str());
   } catch (const PlatformException& exc) {
     ExecuteCallbackWithErrorOrThrow(isolate, callback, exc.WhatV8(isolate));

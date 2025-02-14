@@ -11,17 +11,20 @@ struct ExportedFunctionToken {
   Nan::FunctionCallback function;
 };
 
-#define FUNCTION_SET(suffix, function)   \
-  {"xxhash32_" #suffix, function<H32> }, \
-  {"xxhash64_" #suffix, function<H64> }, \
-  {"xxhash3_" #suffix, function<H3> },   \
-  {"xxhash3_128_" #suffix, function<H3_128> }
+#define FUNCTION_SET(suffix, function)                                        \
+  {"xxhash32_" #suffix, function<H32>}, {"xxhash64_" #suffix, function<H64>}, \
+      {"xxhash3_" #suffix, function<H3>}, {                                   \
+    "xxhash3_128_" #suffix, function<H3_128>                                  \
+  }
 
-void Init(v8::Local<v8::Object> exports) {
-  v8::Local<v8::Context> context =
-      exports->GetCreationContext().ToLocalChecked();
+void Init(v8::Local<v8::Object> exports) {}
 
-  V8HashStateObjectManager::Init();
+#define NODE_GYP_MODULE_NAME xxhash
+
+NODE_MODULE_INIT(/* exports, module, context */) {
+  auto isolate = context->GetIsolate();
+  auto staticData = new V8HashStateObjectStaticData(context);
+  auto external = v8::External::New(isolate, staticData);
 
   ExportedFunctionToken exportedFunctions[] = {
       FUNCTION_SET(oneshot, OneshotHash),
@@ -33,17 +36,14 @@ void Init(v8::Local<v8::Object> exports) {
 
       FUNCTION_SET(fileAsync, FileHashAsync),
       FUNCTION_SET(directoryAsync, DirectoryHashAsync),
-      FUNCTION_SET(directoryToMapAsync, DirectoryToMapHashAsync)
-  };
+      FUNCTION_SET(directoryToMapAsync, DirectoryToMapHashAsync)};
 
   for (auto& token : exportedFunctions) {
     exports
         ->Set(context, Nan::New(token.name).ToLocalChecked(),
-              Nan::New<v8::FunctionTemplate>(token.function)
+              Nan::New<v8::FunctionTemplate>(token.function, external)
                   ->GetFunction(context)
                   .ToLocalChecked())
         .Check();
   }
 }
-
-NODE_MODULE(xxhash, Init)
