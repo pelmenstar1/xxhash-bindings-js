@@ -1,30 +1,15 @@
-#include "exports.h"
+#include <node_api.h>
+
 #include "hashers.h"
-#include "helpers.h"
-#include "v8HashState.h"
+#include "index.h"
+#include "jsHashState.h"
 
 template <int Variant>
-void CreateHashState(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  auto isolate = info.GetIsolate();
-  auto context = isolate->GetCurrentContext();
+Napi::Value XxHashAddon::CreateHashState(const Napi::CallbackInfo& info) {
+  auto env = info.Env();
+  auto cons = reinterpret_cast<Napi::FunctionReference*>(info.Data());
 
-  auto staticData = reinterpret_cast<V8HashStateObjectStaticData*>(
-      info.Data().As<v8::External>()->Value());
-
-  try {
-    v8::Local<v8::Value> seedArg =
-        info.Length() > 0 ? info[0] : v8::Undefined(isolate).As<v8::Value>();
-
-    v8::MaybeLocal<v8::Object> result =
-        V8HashStateObject<Variant>::NewInstance(context, *staticData, seedArg);
-
-    v8::Local<v8::Object> resultValue;
-    if (result.ToLocal(&resultValue)) {
-      info.GetReturnValue().Set(resultValue);
-    }
-  } catch (const std::exception& exc) {
-    isolate->ThrowError(Nan::New(exc.what()).ToLocalChecked());
-  }
+  return cons->New({Napi::Number::New(env, Variant), info[0]});;
 }
 
-INSTANTIATE_HASH_FUNCTION(CreateHashState)
+INSTANTIATE_ADDON_METHOD(CreateHashState)

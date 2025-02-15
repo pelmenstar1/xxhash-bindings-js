@@ -19,7 +19,7 @@ BlockReader::~BlockReader() {
   }
 }
 
-void BlockReader::Open(const NativeChar* path, size_t offset, size_t length) {
+void BlockReader::Open(const NativeString& path, size_t offset, size_t length) {
   const uint32_t MAX_BUFFER_SIZE = 4096;
 
   FileHandle handle = FileHandle::OpenRead(path);

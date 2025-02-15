@@ -56,12 +56,12 @@ class FileHandle {
     }
   }
 
-  static FileHandle OpenRead(const NativeChar* path) {
+  static FileHandle OpenRead(const NativeString& path) {
 #ifdef _WIN32
-    HANDLE fd = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL,
+    HANDLE fd = CreateFileW((LPCWSTR)path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
                             OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 #else
-    int fd = open(path, O_RDONLY);
+    int fd = open(path.c_str(), O_RDONLY);
 #endif
 
     return {fd};

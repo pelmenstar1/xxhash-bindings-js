@@ -2183,6 +2183,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"node-addon-api@npm:^8.3.0":
+  version: 8.3.0
+  resolution: "node-addon-api@npm:8.3.0"
+  dependencies:
+    node-gyp: "npm:latest"
+  checksum: 10c0/0ed4206cb68921b33fc637c6f7ffcb91fcde85aea88ea60fadb7b0537bf177226a5600584eac9db2aff93600041d42796fb20576b3299b9be6ff7539592b2180
+  languageName: node
+  linkType: hard
+
 "node-gyp@npm:^11.0.0, node-gyp@npm:latest":
   version: 11.0.0
   resolution: "node-gyp@npm:11.0.0"
@@ -3072,6 +3081,7 @@ __metadata:
   dependencies:
     "@types/node": "npm:^22.10.2"
     nan: "npm:^2.22.0"
+    node-addon-api: "npm:^8.3.0"
     node-gyp: "npm:^11.0.0"
     typescript: "npm:^5.7.2"
   languageName: unknown

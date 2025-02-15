@@ -2,7 +2,7 @@
 
 template <int Variant>
 XxResult<Variant> BlockHashWorker<Variant>::Process(
-    const HashWorkerContext<>& context) {
+    const HashWorkerContext& context) {
   _state.Reset(_seed);
   _blockReader.Open(context.path, context.offset, context.length);
 
@@ -21,7 +21,7 @@ XxResult<Variant> BlockHashWorker<Variant>::Process(
 
 template <int Variant>
 XxResult<Variant> MapHashWorker<Variant>::Process(
-    const HashWorkerContext<>& context) {
+    const HashWorkerContext& context) {
   MemoryMappedFile file;
   bool isCompatible = file.Open(context.path, context.offset, context.length);
 

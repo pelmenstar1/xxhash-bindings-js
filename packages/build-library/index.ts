@@ -35,7 +35,6 @@ async function main() {
 
   process.chdir('../library');
 
-  await runCommand('yarn', ['tsc']);
   await runCommand('yarn', [
     'node-gyp',
     'configure',
@@ -43,10 +42,14 @@ async function main() {
   ]);
   await runCommand('yarn', ['node-gyp', 'build', '-j', 'max']);
 
-  await fs.promises.cp(
-    `./build/${debug ? 'Debug' : 'Release'}/xxhash.node`,
-    `./dist/xxhash-${process.platform}-${process.arch}.node`,
-  );
+  await Promise.all([
+    fs.promises.cp(
+      `./build/${debug ? 'Debug' : 'Release'}/xxhash.node`,
+      `./dist/xxhash-${process.platform}-${process.arch}.node`,
+    ),
+    fs.promises.cp('./index.js', './dist/index.js'),
+    fs.promises.cp('./index.d.ts', './dist/index.d.ts'),
+  ]);
 
   console.log('Finished successfully');
 }

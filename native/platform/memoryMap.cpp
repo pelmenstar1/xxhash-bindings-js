@@ -17,7 +17,7 @@
 
 #undef min
 
-bool MemoryMappedFile::Open(const NativeChar* path, size_t offset,
+bool MemoryMappedFile::Open(const NativeString& path, size_t offset,
                             size_t length) {
   auto handle = FileHandle::OpenRead(path);
   CHECK_PLATFORM_ERROR(handle.IsInvalid())

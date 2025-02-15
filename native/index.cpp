@@ -1,49 +1,34 @@
-#include <nan.h>
+#include "index.h"
 
-#include <functional>
+#include "jsHashState.h"
 
-#include "exports.h"
-#include "helpers.h"
-#include "v8HashState.h"
+#define FUNCTION_SET(suffix, function, ...)                                  \
+  InstanceMethod("xxhash32_" #suffix, &XxHashAddon::function<H32>,           \
+                 napi_default_method __VA_ARGS__),                           \
+      InstanceMethod("xxhash64_" #suffix, &XxHashAddon::function<H64>,       \
+                     napi_default_method __VA_ARGS__),                       \
+      InstanceMethod("xxhash3_" #suffix, &XxHashAddon::function<H3>,         \
+                     napi_default_method __VA_ARGS__),                       \
+      InstanceMethod("xxhash3_128_" #suffix, &XxHashAddon::function<H3_128>, \
+                     napi_default_method __VA_ARGS__)
 
-struct ExportedFunctionToken {
-  const char* name;
-  Nan::FunctionCallback function;
-};
+XxHashAddon::XxHashAddon(Napi::Env env, Napi::Object exports) {
+  Napi::FunctionReference* stateCons = new Napi::FunctionReference(
+      Napi::Persistent(JsHashStateObject::Init(env)));
 
-#define FUNCTION_SET(suffix, function)                                        \
-  {"xxhash32_" #suffix, function<H32>}, {"xxhash64_" #suffix, function<H64>}, \
-      {"xxhash3_" #suffix, function<H3>}, {                                   \
-    "xxhash3_128_" #suffix, function<H3_128>                                  \
-  }
+  env.AddCleanupHook([stateCons]() {
+    stateCons->Reset();
+    delete stateCons;
+  });
+  
 
-void Init(v8::Local<v8::Object> exports) {}
-
-#define NODE_GYP_MODULE_NAME xxhash
-
-NODE_MODULE_INIT(/* exports, module, context */) {
-  auto isolate = context->GetIsolate();
-  auto staticData = new V8HashStateObjectStaticData(context);
-  auto external = v8::External::New(isolate, staticData);
-
-  ExportedFunctionToken exportedFunctions[] = {
-      FUNCTION_SET(oneshot, OneshotHash),
-      FUNCTION_SET(createState, CreateHashState),
-
-      FUNCTION_SET(file, FileHash),
-      FUNCTION_SET(directory, DirectoryHash),
-      FUNCTION_SET(directoryToMap, DirectoryToMapHash),
-
-      FUNCTION_SET(fileAsync, FileHashAsync),
-      FUNCTION_SET(directoryAsync, DirectoryHashAsync),
-      FUNCTION_SET(directoryToMapAsync, DirectoryToMapHashAsync)};
-
-  for (auto& token : exportedFunctions) {
-    exports
-        ->Set(context, Nan::New(token.name).ToLocalChecked(),
-              Nan::New<v8::FunctionTemplate>(token.function, external)
-                  ->GetFunction(context)
-                  .ToLocalChecked())
-        .Check();
-  }
+  DefineAddon(exports,
+              {
+                  FUNCTION_SET(oneshot, OneshotHash),
+                  FUNCTION_SET(createState, CreateHashState, , stateCons),
+                  FUNCTION_SET(file, FileHash),
+                  FUNCTION_SET(fileAsync, FileHashAsync),
+              });
 }
+
+NODE_API_ADDON(XxHashAddon)

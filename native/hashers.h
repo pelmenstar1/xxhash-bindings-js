@@ -126,6 +126,11 @@ class XxHashState {
 
   ~XxHashState() { Traits::FreeState(_state); }
 
+  XxHashState<Variant>& operator=(XxHashState<Variant>&& other) {
+    _state = other._state;
+    other._state = nullptr;
+  }
+
   void Reset(XxSeed<Variant> seed) { Traits::Reset(_state, seed); }
 
   void Update(const uint8_t* data, size_t length) {
@@ -139,3 +144,72 @@ class XxHashState {
 
   _XxHashState<Variant>* _state = nullptr;
 };
+
+class XxHashDynamicState {
+ public:
+  virtual ~XxHashDynamicState() {
+  }
+
+  virtual void Reset(uint64_t seed) = 0;
+  virtual void Update(const uint8_t* data, size_t length) = 0;
+
+  virtual XXH128_hash_t GetResult() const = 0;
+};
+
+template <int Variant>
+class XxHashDynamicStateImpl : public XxHashDynamicState {
+ public:
+  XxHashDynamicStateImpl() {
+    _state = Traits::NewState();
+    if (_state == nullptr) {
+      throw std::runtime_error("Out of memory");
+    }
+  }
+
+  XxHashDynamicStateImpl(uint64_t seed) : XxHashDynamicStateImpl<Variant>() {
+    Reset(seed);
+  }
+
+  XxHashDynamicStateImpl(const XxHashDynamicStateImpl<Variant>& source) = delete;
+
+  XxHashDynamicStateImpl(XxHashDynamicStateImpl<Variant>&& source) {
+    _state = source._state;
+    source._state = nullptr;
+  }
+
+  virtual ~XxHashDynamicStateImpl() override { Traits::FreeState(_state); }
+
+  XxHashDynamicStateImpl<Variant>& operator=(XxHashDynamicStateImpl<Variant>&& other) {
+    _state = other._state;
+    other._state = nullptr;
+  }
+
+  void Reset(uint64_t seed) override { Traits::Reset(_state, (XxSeed<Variant>)seed); }
+
+  void Update(const uint8_t* data, size_t length) override {
+    Traits::Update(_state, data, length);
+  }
+
+  XXH128_hash_t GetResult() const override {
+    auto digest = Traits::Digest(_state);
+
+    if constexpr (Variant == H3_128) {
+      return digest;
+    } else {
+      XXH128_hash_t result;
+      result.low64 = (uint64_t)digest;
+
+      return result;
+    }
+  }
+
+ private:
+  using Traits = XxHashTraits<Variant>;
+
+  _XxHashState<Variant>* _state = nullptr;
+};
+
+using XxHashState32 = XxHashDynamicStateImpl<H32>;
+using XxHashState64 = XxHashDynamicStateImpl<H64>;
+using XxHashState3 = XxHashDynamicStateImpl<H3>;
+using XxHashState3_128 = XxHashDynamicStateImpl<H3_128>;
