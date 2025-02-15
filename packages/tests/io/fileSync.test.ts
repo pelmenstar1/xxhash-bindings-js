@@ -1,5 +1,5 @@
-import { setupTests } from '../base/file';
-import { expectToThrowSyncFactory, syncToAsync } from '../base/helpers';
+import { setupTests } from './fileTestGenerator';
+import { expectToThrowSyncFactory, syncToAsync } from './helpers';
 import lib from 'xxhash-bindings';
 
 setupTests({

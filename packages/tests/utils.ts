@@ -9,6 +9,6 @@ export const variantNames = [
 
 export const TEST_DATA_PATH = './test_data';
 
-export function testData(...paths: string[]): string {
-  return path.join(TEST_DATA_PATH, ...paths);
+export function testData(path: string): string {
+  return `${TEST_DATA_PATH}/${path}`;
 }

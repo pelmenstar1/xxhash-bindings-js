@@ -1,10 +1,8 @@
 import { test, expect, describe } from 'vitest';
 import fs from 'fs';
-import lib, { FileHashOptions, XxVariantName } from 'xxhash-bindings';
+import { FileHashOptions, XxVariantName } from 'xxhash-bindings';
 import { numberWithBigint } from './helpers';
 import { testData, variantNames } from '@/utils';
-
-type Lib = typeof lib;
 
 const preferMapValues = [undefined, false, true];
 

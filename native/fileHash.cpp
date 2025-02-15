@@ -63,6 +63,7 @@ Napi::Value XxHashAddon::FileHashAsync(const Napi::CallbackInfo& info) {
                  bool preferMap)
         : Napi::AsyncWorker(callback),
           _seed(seed),
+          _path(path),
           _fileOffset(fileOffset),
           _length(length),
           _result(0),
@@ -107,7 +108,7 @@ Napi::Value XxHashAddon::FileHashAsync(const Napi::CallbackInfo& info) {
 
   Napi::Env env = info.Env();
 
-  if (info.Length() != 1) {
+  if (info.Length() != 2) {
     throw Napi::Error::New(env, "Wrong number of arguments");
   }
 
@@ -122,11 +123,11 @@ Napi::Value XxHashAddon::FileHashAsync(const Napi::CallbackInfo& info) {
     JS_PARSE_PROPERTY(options, offset, uint64_t, 0);
     JS_PARSE_PROPERTY(options, length, uint64_t,
                       std::numeric_limits<uint64_t>::max());
-
-    auto nativePath = pathProp.Utf8Value();
-
+    
+    auto nativePath = JsStringToCString<NativeChar>(pathProp);
+    
     ReaderWorker* worker = new ReaderWorker(
-        callback, seedProp, JsStringToCString<NativeChar>(pathProp), offsetProp,
+        callback, seedProp, nativePath, offsetProp,
         lengthProp, preferMapProp);
     worker->Queue();
   } catch (const PlatformException& exc) {

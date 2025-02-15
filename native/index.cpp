@@ -20,7 +20,6 @@ XxHashAddon::XxHashAddon(Napi::Env env, Napi::Object exports) {
     stateCons->Reset();
     delete stateCons;
   });
-  
 
   DefineAddon(exports,
               {
