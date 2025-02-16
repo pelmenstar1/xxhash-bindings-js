@@ -6,7 +6,8 @@
     "benchmark": "yarn workspace @xxhash-bindings/benchmark run benchmark",
     "lint": "eslint",
     "build": "yarn workspace @xxhash-bindings/build-library run build",
-    "test": "yarn workspace @xxhash-bindings/tests vitest --run"
+    "test": "yarn workspace @xxhash-bindings/tests vitest --run",
+    "update-xxhash": "tsx scripts/updateXxHash.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
