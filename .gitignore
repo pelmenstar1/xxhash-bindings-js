@@ -3,7 +3,6 @@
 build
 node_modules
 scripts/.temp/**
-scripts/.cross-testing
 
 dist
 .yarn
