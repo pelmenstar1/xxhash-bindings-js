@@ -4,10 +4,20 @@
 
 #ifdef _WIN32
 #include <windows.h>
+
+class LocalBuffer {
+ public:
+  LocalBuffer(HANDLE handle) : _handle(handle) {}
+
+  ~LocalBuffer() { LocalFree(_handle); }
+
+ private:
+  HANDLE _handle;
+};
 #endif
 
-v8::Local<v8::String> UnknownSystemError(v8::Isolate* isolate) {
-  return v8::String::NewFromUtf8Literal(isolate, "Unknown system error");
+Napi::String UnknownSystemError(Napi::Env env) {
+  return Napi::String::New(env, "Unknown system error");
 }
 
 void ThrowPlatformException() {
@@ -20,14 +30,8 @@ void ThrowPlatformException() {
   throw PlatformException(error);
 }
 
-v8::Local<v8::String> PlatformException::WhatV8(v8::Isolate* isolate) const {
-  return FormatErrorToV8String(isolate, _error);
-}
-
-v8::Local<v8::String> PlatformException::FormatErrorToV8String(
-    v8::Isolate* isolate, ErrorDesc error) {
-  v8::MaybeLocal<v8::String> message;
-
+Napi::String PlatformException::FormatErrorToJsString(Napi::Env env,
+                                                      ErrorDesc error) {
 #ifdef _WIN32
   LPWSTR messageBuffer = nullptr;
   DWORD messageLength = FormatMessageW(
@@ -35,31 +39,19 @@ v8::Local<v8::String> PlatformException::FormatErrorToV8String(
           FORMAT_MESSAGE_IGNORE_INSERTS,
       NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
       reinterpret_cast<LPWSTR>(&messageBuffer), 0, NULL);
+  LocalBuffer localBuffer(messageBuffer);
 
-  if (messageLength == 0) {
-    message = UnknownSystemError(isolate);
-  } else {
-    message =
-        v8::String::NewFromTwoByte(isolate, (const uint16_t*)messageBuffer,
-                                   v8::NewStringType::kNormal, messageLength);
+  if (messageLength != 0) {
+    return Napi::String::New(env, (const char16_t*)messageBuffer,
+                             messageLength);
   }
-
-  LocalFree(messageBuffer);
 #else
   const char* errorDesc = strerror(error);
 
-  if (errorDesc == nullptr) {
-    message = UnknownSystemError(isolate);
-  } else {
-    message = v8::String::NewFromUtf8(isolate, errorDesc);
+  if (errorDesc != nullptr) {
+    return Napi::String::New(env, errorDesc);
   }
 #endif
 
-  v8::Local<v8::String> messageValue;
-
-  if (message.ToLocal(&messageValue)) {
-    return messageValue;
-  } else {
-    return UnknownSystemError(isolate);
-  }
+  return UnknownSystemError(env);
 }

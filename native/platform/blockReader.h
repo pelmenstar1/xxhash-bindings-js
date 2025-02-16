@@ -26,7 +26,7 @@ class BlockReader {
   BlockReader() {}
   ~BlockReader();
 
-  void Open(const NativeChar* path, size_t offset, size_t length);
+  void Open(const NativeString& path, size_t offset, size_t length);
 
   Block ReadBlock();
 

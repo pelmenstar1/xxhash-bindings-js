@@ -1,9 +1,11 @@
 #pragma once
 
-#include <v8.h>
+#include <napi.h>
 
 #include <stdexcept>
 #include <string>
+
+#include "nativeString.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -14,22 +16,21 @@ using ErrorDesc = int;
 #endif
 
 class PlatformException : public std::exception {
- private:
-  ErrorDesc _error;
-
  public:
   PlatformException(ErrorDesc error) : _error(error) {}
 
   virtual char const* what() const noexcept override { return "System error"; }
 
-  v8::Local<v8::String> WhatV8(v8::Isolate* isolate) const;
-
+  Napi::String WhatJs(Napi::Env env) const {
+    return FormatErrorToJsString(env, _error);
+  }
   ErrorDesc ErrorCode() const { return _error; }
 
-  static v8::Local<v8::String> FormatErrorToV8String(v8::Isolate* isolate, ErrorDesc error);
+  static Napi::String FormatErrorToJsString(Napi::Env env, ErrorDesc error);
+
+ private:
+  ErrorDesc _error;
 };
-
-
 
 [[noreturn]] void ThrowPlatformException();
 

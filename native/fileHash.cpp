@@ -1,140 +1,141 @@
-#include <nan.h>
+#include <napi.h>
 
+#include <limits>
 #include <stdexcept>
 
-#include "exports.h"
 #include "fileHashWorker.h"
 #include "hashers.h"
-#include "helpers.h"
+#include "index.h"
+#include "jsObjectParser.h"
+#include "jsUtils.h"
 #include "platform/nativeString.h"
 #include "platform/platformError.h"
-#include "v8ObjectParser.h"
-#include "v8Utils.h"
 
-template <int Variant>
-void FileHash(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
+#undef max
+
+Napi::Value XxHashAddon::FileHash(const Napi::CallbackInfo& info) {
+  uint32_t variant = GetVariantData(info);
+  auto env = info.Env();
+
+  if (info.Length() != 1) {
+    throw Napi::Error::New(env, "Wrong number of arguments");
+  }
 
   try {
-    v8::Local<v8::Object> options;
-    switch (info.Length()) {
-      case 1:
-        V8_PARSE_ARGUMENT(options, 0, v8::Local<v8::Object>);
-        break;
-      default:
-        throw std::runtime_error("Wrong number of arguments");
-    }
+    auto options = JsParseArgument<Napi::Object>(env, info[0], "options");
 
-    V8_PARSE_PROPERTY(options, path, v8::Local<v8::String>);
-    V8_PARSE_PROPERTY(options, seed, XxSeed<Variant>, 0);
-    V8_PARSE_PROPERTY(options, preferMap, bool, false);
-    V8_PARSE_PROPERTY(options, offset, size_t, 0);
-    V8_PARSE_PROPERTY(options, length, size_t, SIZE_MAX);
+    auto path = JsParseProperty<Napi::String>(env, options, "path");
+    uint64_t seed = JsParseSeedProperty(env, variant, options);
+    auto preferMap = JsParseProperty<bool>(env, options, "preferMap", false);
+    auto offset = JsParseProperty<uint64_t>(env, options, "offset", 0);
+    auto length = JsParseProperty<uint64_t>(env, options, "length", std::numeric_limits<uint64_t>::max());
 
-    auto nativePath = V8StringToCString<NativeChar>(isolate, pathProp);
-    HashWorkerContext<> hashContext(nativePath.c_str(), offsetProp, lengthProp);
+    auto nativePath = JsStringToCString<NativeChar>(path);
+    HashWorkerContext hashContext(nativePath, offset, length);
 
-    auto result = HashFile<Variant>(hashContext, seedProp, preferMapProp);
+    auto result = HashFile(hashContext, variant, seed, preferMap);
 
-    info.GetReturnValue().Set(
-        V8ValueConverter<XxResult<Variant>>::ConvertBack(isolate, result));
+    return JsParseHashResult(env, variant, result);
   } catch (const PlatformException& exc) {
-    isolate->ThrowError(exc.WhatV8(isolate));
-  } catch (const std::exception& exc) {
-    isolate->ThrowError(Nan::New(exc.what()).ToLocalChecked());
+    Napi::Error::New(env, exc.WhatJs(env)).ThrowAsJavaScriptException();
+
+    return env.Undefined();
   }
 }
 
-template <int Variant>
-void FileHashAsync(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  class AsyncBlockReaderImpl : public AsyncBlockReader {
+void ExecuteCallbackWithErrorOrThrow(Napi::Env env,
+                                     const Napi::Function& callback,
+                                     const Napi::String& message) {
+  auto error = Napi::Error::New(env, message);
+
+  if (callback.IsUndefined()) {
+    error.ThrowAsJavaScriptException();
+  } else {
+    callback.Call({error.Value()});
+  }
+}
+
+Napi::Value XxHashAddon::FileHashAsync(const Napi::CallbackInfo& info) {
+  class ReaderWorker : public Napi::AsyncWorker {
    public:
-    AsyncBlockReaderImpl(v8::Global<v8::Function>& callback,
-                         XxSeed<Variant> seed, size_t fileOffset, size_t length)
-        : AsyncBlockReader(fileOffset, length),
-          _hashState(seed),
-          _callback(std::move(callback)) {}
+    ReaderWorker(uint32_t variant, uint64_t seed, NativeString path,
+                 size_t fileOffset, size_t length, bool preferMap,
+                 Napi::Function callback)
+        : Napi::AsyncWorker(callback),
+          _variant(variant),
+          _seed(seed),
+          _path(path),
+          _fileOffset(fileOffset),
+          _preferMap(preferMap),
+          _length(length) {}
 
-    void OnBlock(const uint8_t* data, size_t length) override {
-      _hashState.Update(data, length);
+    void Execute() {
+      HashWorkerContext hashContext(_path, _fileOffset, _length);
+
+      try {
+        _result = HashFile(hashContext, _variant, _seed, _preferMap);
+      } catch (PlatformException& exc) {
+        _error = exc.ErrorCode();
+      }
     }
 
-    void OnEnd() override {
-      auto isolate = v8::Isolate::GetCurrent();
-      v8::HandleScope scope(isolate);
-      auto result = _hashState.GetResult();
+    void OnOK() {
+      auto env = Env();
 
-      auto v8Result =
-          V8ValueConverter<XxResult<Variant>>::ConvertBack(isolate, result);
+      if (_error == 0) {
+        auto jsResult = JsParseHashResult(env, _variant, _result);
 
-      ExecuteCallback(isolate, v8::Undefined(isolate), v8Result);
-    }
+        Callback().Call({env.Undefined(), jsResult});
+      } else {
+        auto jsErrorMessage =
+            PlatformException::FormatErrorToJsString(env, _error);
+        auto jsError = Napi::Error::New(env, jsErrorMessage).Value();
 
-    void OnError(const char* message) override {
-      auto isolate = v8::Isolate::GetCurrent();
-      v8::HandleScope scope(isolate);
-
-      auto v8Message =
-          v8::String::NewFromUtf8(isolate, message).ToLocalChecked();
-      auto v8Error = v8::Exception::Error(v8Message);
-
-      ExecuteCallback(isolate, v8Error, v8::Undefined(isolate));
+        Callback().Call({jsError, env.Undefined()});
+      }
     }
 
    private:
-    XxHashState<Variant> _hashState;
-    v8::Global<v8::Function> _callback;
+    uint32_t _variant;
+    NativeString _path;
+    size_t _fileOffset;
+    size_t _length;
+    uint64_t _seed;
+    bool _preferMap;
 
-    void ExecuteCallback(v8::Isolate* isolate, v8::Local<v8::Value> error,
-                         v8::Local<v8::Value> result) {
-      Nan::AsyncResource resource("FileHash");
-
-      const int argc = 2;
-      v8::Local<v8::Value> argv[argc];
-      argv[0] = error;
-      argv[1] = result;
-
-      resource.runInAsyncScope(v8::Object::New(isolate), _callback.Get(isolate),
-                               argc, argv);
-    }
+    GenericHashResult _result;
+    ErrorDesc _error = 0;
   };
 
-  v8::Isolate* isolate = info.GetIsolate();
+  uint32_t variant = GetVariantData(info);
+  Napi::Env env = info.Env();
 
   if (info.Length() != 2) {
-    isolate->ThrowError("Wrong number of arguments");
-    return;
+    throw Napi::Error::New(env, "Wrong number of arguments");
   }
 
-  v8::Local<v8::Function> callback;
+  Napi::Function callback;
   try {
-    callback =
-        V8ParseArgument<v8::Local<v8::Function>>(isolate, info[1], "callback");
+    callback = JsParseArgument<Napi::Function>(env, info[1], "callback");
+    auto options = JsParseArgument<Napi::Object>(env, info[0], "options");
 
-    auto options =
-        V8ParseArgument<v8::Local<v8::Object>>(isolate, info[0], "options");
+    auto path = JsParseProperty<Napi::String>(env, options, "path");
+    uint64_t seed = JsParseSeedProperty(env, variant, options);
+    auto preferMap = JsParseProperty<bool>(env, options, "preferMap", false);
+    auto offset = JsParseProperty<uint64_t>(env, options, "offset", 0);
+    auto length = JsParseProperty<uint64_t>(env, options, "length", std::numeric_limits<uint64_t>::max());
 
-    V8_PARSE_PROPERTY(options, path, v8::Local<v8::String>);
-    V8_PARSE_PROPERTY(options, seed, XxSeed<Variant>, 0);
-    V8_PARSE_PROPERTY(options, preferMap, bool, false);
-    V8_PARSE_PROPERTY(options, offset, size_t, 0);
-    V8_PARSE_PROPERTY(options, length, size_t, SIZE_MAX);
-
-    auto nativePath = V8StringToCString<char>(isolate, pathProp);
-
-    v8::Global<v8::Function> globalCallback(isolate, callback);
-
-    AsyncBlockReaderImpl* impl = new AsyncBlockReaderImpl(
-        globalCallback, seedProp, offsetProp, lengthProp);
-    impl->Schedule(Nan::GetCurrentEventLoop(), nativePath.c_str());
+    auto nativePath = JsStringToCString<NativeChar>(path);
+    
+    ReaderWorker* worker = new ReaderWorker(variant, seed, nativePath, offset,
+                                            length, preferMap, callback);
+    worker->Queue();
   } catch (const PlatformException& exc) {
-    ExecuteCallbackWithErrorOrThrow(isolate, callback, exc.WhatV8(isolate));
+    ExecuteCallbackWithErrorOrThrow(env, callback, exc.WhatJs(env));
   } catch (const std::exception& exc) {
-    auto v8What = v8::String::NewFromUtf8(isolate, exc.what()).ToLocalChecked();
-
-    ExecuteCallbackWithErrorOrThrow(isolate, callback, v8What);
+    ExecuteCallbackWithErrorOrThrow(env, callback,
+                                    Napi::String::New(env, exc.what()));
   }
-}
 
-INSTANTIATE_HASH_FUNCTION(FileHash)
-INSTANTIATE_HASH_FUNCTION(FileHashAsync)
+  return env.Undefined();
+}

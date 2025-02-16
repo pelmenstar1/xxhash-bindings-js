@@ -13,25 +13,13 @@
 
 #undef min
 
-#ifdef _WIN32
-
-#define ALLOCATE_BUFFER(size) ((uint8_t*)_aligned_malloc(size, 64))
-#define FREE_BUFFER _aligned_free
-
-#else
-
-#define ALLOCATE_BUFFER(size) ((uint8_t*)aligned_alloc(64, size))
-#define FREE_BUFFER free
-
-#endif
-
 BlockReader::~BlockReader() {
   if (_buffer != nullptr) {
-    FREE_BUFFER(_buffer);
+    free(_buffer);
   }
 }
 
-void BlockReader::Open(const NativeChar* path, size_t offset, size_t length) {
+void BlockReader::Open(const NativeString& path, size_t offset, size_t length) {
   const uint32_t MAX_BUFFER_SIZE = 4096;
 
   FileHandle handle = FileHandle::OpenRead(path);
@@ -61,13 +49,13 @@ void BlockReader::Open(const NativeChar* path, size_t offset, size_t length) {
   uint8_t* buffer = _buffer;
 
   if (buffer == nullptr) {
-    buffer = ALLOCATE_BUFFER(prefBufferSize);
+    buffer = (uint8_t*)malloc(prefBufferSize);
     _bufferSize = prefBufferSize;
 
   } else if (prefBufferSize > _bufferSize) {
-    FREE_BUFFER(buffer);
+    free(buffer);
 
-    buffer = ALLOCATE_BUFFER(MAX_BUFFER_SIZE);
+    buffer = (uint8_t*)malloc(MAX_BUFFER_SIZE);
     _bufferSize = MAX_BUFFER_SIZE;
   }
 
@@ -109,7 +97,7 @@ AsyncBlockReader::~AsyncBlockReader() {
   }
 
   if (_readInitialized) {
-    FREE_BUFFER(_uvBuffer.base);
+    free(_uvBuffer.base);
     uv_fs_req_cleanup(&_readReq);
   }
 }
@@ -140,7 +128,7 @@ bool AsyncBlockReader::_HandleOpenResponse(uv_fs_t* req) {
       return false;
     }
 
-    char* buffer = (char*)ALLOCATE_BUFFER(BufferSize);
+    char* buffer = (char*)malloc(BufferSize);
     _uvBuffer = uv_buf_init(buffer, BufferSize);
     _uvBuffer.len = std::min(_length, BufferSize);
 

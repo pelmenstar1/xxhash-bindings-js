@@ -1,9 +1,6 @@
 #include "fileHashWorker.h"
 
-template <int Variant>
-XxResult<Variant> BlockHashWorker<Variant>::Process(
-    const HashWorkerContext<>& context) {
-  _state.Reset(_seed);
+GenericHashResult BlockHashWorker::Process(const HashWorkerContext& context) {
   _blockReader.Open(context.path, context.offset, context.length);
 
   while (true) {
@@ -19,9 +16,7 @@ XxResult<Variant> BlockHashWorker<Variant>::Process(
   return _state.GetResult();
 }
 
-template <int Variant>
-XxResult<Variant> MapHashWorker<Variant>::Process(
-    const HashWorkerContext<>& context) {
+GenericHashResult MapHashWorker::Process(const HashWorkerContext& context) {
   MemoryMappedFile file;
   bool isCompatible = file.Open(context.path, context.offset, context.length);
 
@@ -31,15 +26,15 @@ XxResult<Variant> MapHashWorker<Variant>::Process(
     // inside a MapHashWorker.
     //
     // Use a oneshot method.
-    return _HashFile<Variant, BlockHashWorker<Variant>>(context, _seed);
+    return _HashFile<BlockHashWorker>(context, _variant, _seed);
   }
 
   size_t size = file.GetSize();
-  XxResult<Variant> result;
+  GenericHashResult result;
 
   file.Access(
       [&](const uint8_t* address) {
-        result = XxHashTraits<Variant>::Oneshot(address, size, _seed);
+        result = XxHashDynamicState::Oneshot(_variant, address, size, _seed);
       },
       [&] {
         throw std::runtime_error("IO error occurred while reading the file");
@@ -47,14 +42,3 @@ XxResult<Variant> MapHashWorker<Variant>::Process(
 
   return result;
 }
-
-#define _INSTANTIATE_WORKER(name, variant) template class name<variant>;
-
-#define INSTANTIATE_WORKER(name) \
-  _INSTANTIATE_WORKER(name, H32) \
-  _INSTANTIATE_WORKER(name, H64) \
-  _INSTANTIATE_WORKER(name, H3)  \
-  _INSTANTIATE_WORKER(name, H3_128)
-
-INSTANTIATE_WORKER(BlockHashWorker)
-INSTANTIATE_WORKER(MapHashWorker)

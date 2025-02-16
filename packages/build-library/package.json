@@ -1,14 +1,13 @@
 {
-  "name": "@xxhash-bindings/benchmark",
+  "name": "@xxhash-bindings/build-library",
   "private": true,
   "type": "module",
   "scripts": {
-    "benchmark": "tsx ./src/index.ts"
+    "build": "tsx index.ts"
   },
   "dependencies": {
-    "tinybench": "^3.0.7",
-    "tsx": "^4.19.2",
-    "xxhash-bindings": "workspace:^"
+    "node-gyp": "^11.1.0",
+    "tsx": "^4.19.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.2"

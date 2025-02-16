@@ -1,51 +1,49 @@
-#include <nan.h>
+#include "index.h"
 
-#include <functional>
+#include "jsHashState.h"
 
-#include "exports.h"
-#include "helpers.h"
-#include "v8HashState.h"
+#define FUNCTION_SET_ITEM(name, function, data) \
+  InstanceMethod(name, &XxHashAddon::function, napi_default_method, data)
 
-struct ExportedFunctionToken {
-  const char* name;
-  Nan::FunctionCallback function;
-};
+#define FUNCTION_SET(suffix, function)                              \
+  FUNCTION_SET_ITEM("xxhash32_" #suffix, function, (void*)H32),     \
+      FUNCTION_SET_ITEM("xxhash64_" #suffix, function, (void*)H64), \
+      FUNCTION_SET_ITEM("xxhash3_" #suffix, function, (void*)H3),  \
+      FUNCTION_SET_ITEM("xxhash3_128_" #suffix, function, (void*)H3_128)
 
-#define FUNCTION_SET(suffix, function)   \
-  {"xxhash32_" #suffix, function<H32> }, \
-  {"xxhash64_" #suffix, function<H64> }, \
-  {"xxhash3_" #suffix, function<H3> },   \
-  {"xxhash3_128_" #suffix, function<H3_128> }
+XxHashAddon::XxHashAddon(Napi::Env env, Napi::Object exports) {
+  Napi::FunctionReference* stateCons = new Napi::FunctionReference(
+      Napi::Persistent(JsHashStateObject::Init(env)));
 
-void Init(v8::Local<v8::Object> exports) {
-  v8::Local<v8::Context> context =
-      exports->GetCreationContext().ToLocalChecked();
+  AddonData* data = new AddonData();
 
-  V8HashStateObjectManager::Init();
-
-  ExportedFunctionToken exportedFunctions[] = {
-      FUNCTION_SET(oneshot, OneshotHash),
-      FUNCTION_SET(createState, CreateHashState),
-
-#ifndef XXHASH_BINDINGS_MIN
-      FUNCTION_SET(file, FileHash),
-      FUNCTION_SET(directory, DirectoryHash),
-      FUNCTION_SET(directoryToMap, DirectoryToMapHash),
-
-      FUNCTION_SET(fileAsync, FileHashAsync),
-      FUNCTION_SET(directoryAsync, DirectoryHashAsync),
-      FUNCTION_SET(directoryToMapAsync, DirectoryToMapHashAsync)
-#endif
-  };
-
-  for (auto& token : exportedFunctions) {
-    exports
-        ->Set(context, Nan::New(token.name).ToLocalChecked(),
-              Nan::New<v8::FunctionTemplate>(token.function)
-                  ->GetFunction(context)
-                  .ToLocalChecked())
-        .Check();
+  for (uint32_t i = 0; i < HASH_VARIANTS_COUNT; i++) {
+    data->variants[i] = CreateStateData(i, stateCons);
   }
+
+  env.AddCleanupHook([stateCons, data]() {
+    stateCons->Reset();
+
+    delete stateCons;
+    delete data;
+  });
+
+  DefineAddon(exports,
+              {
+                  FUNCTION_SET(oneshot, OneshotHash),
+                  FUNCTION_SET(file, FileHash),
+                  FUNCTION_SET(fileAsync, FileHashAsync),
+
+                  FUNCTION_SET_ITEM("xxhash32_createState", CreateHashState,
+                                    &data->variants[H32]),
+                  FUNCTION_SET_ITEM("xxhash64_createState", CreateHashState,
+                                    &data->variants[H64]),
+                  FUNCTION_SET_ITEM("xxhash3_createState", CreateHashState,
+                                    &data->variants[H3]),
+                  FUNCTION_SET_ITEM("xxhash3_128_createState", CreateHashState,
+                                    &data->variants[H3_128]),
+
+              });
 }
 
-NODE_MODULE(xxhash, Init)
+NODE_API_ADDON(XxHashAddon)

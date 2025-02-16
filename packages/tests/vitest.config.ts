@@ -20,6 +20,7 @@ export default defineConfig({
     alias,
   },
   test: {
+    pool: 'threads',
     globalSetup: './globalSetup.ts',
   },
 });

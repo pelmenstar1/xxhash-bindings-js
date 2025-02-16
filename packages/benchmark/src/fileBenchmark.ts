@@ -1,12 +1,8 @@
 import { Bench } from 'tinybench';
-import {
-  xxhash3 as minXxHash3,
-  FileHashOptions,
-} from 'xxhash-bindings-min/index.ts';
-import { xxhash3 as allXxHash3 } from 'xxhash-bindings-allnative/index.ts';
 import { generateRandomFileContent } from './randomDataGenerator.js';
 import { KB, MB, TEST_DATA_PATH } from './constants.ts';
 import fs from 'fs';
+import { FileHashOptions, xxhash3 } from 'xxhash-bindings';
 
 const fileInfos: { name: string; size: number }[] = [
   { name: 'gb1', size: 1024 * MB },
@@ -52,14 +48,11 @@ export async function run(): Promise<Bench> {
     };
 
     bench
-      .add(`all map (${name})`, () => {
-        allXxHash3.file(mapOptions);
+      .add(`map (${name})`, () => {
+        xxhash3.file(mapOptions);
       })
-      .add(`all block (${name})`, () => {
-        allXxHash3.file(blockOptions);
-      })
-      .add(`min block (${name})`, () => {
-        minXxHash3.file(blockOptions);
+      .add(`block (${name})`, () => {
+        xxhash3.file(blockOptions);
       });
   }
 
