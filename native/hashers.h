@@ -9,7 +9,27 @@ enum HashVariant { H32, H64, H3, H3_128 };
 
 constexpr uint32_t HASH_VARIANTS_COUNT = 4;
 
-using GenericHashResult = XXH128_hash_t;
+class GenericHashResult {
+ public:
+  GenericHashResult() {
+    _value.low64 = 0;
+    _value.high64 = 0;
+  }
+  GenericHashResult(uint64_t value) {
+    _value.low64 = value;
+    _value.high64 = 0;
+  }
+  GenericHashResult(XXH128_hash_t value) : _value(value) {}
+
+  explicit operator uint64_t() const { return _value.low64; }
+
+  operator XXH128_hash_t() const { return _value; }
+
+  XXH128_hash_t Value() const { return _value; }
+
+ private:
+  XXH128_hash_t _value;
+};
 
 class XxHashDynamicState {
  public:
@@ -106,19 +126,18 @@ class XxHashDynamicState {
     }
   }
 
-  XXH128_hash_t GetResult() const {
+  GenericHashResult GetResult() const {
     switch (_variant) {
       case H32:
-        return {.low64 = XXH32_digest((XXH32_state_t*)_state), .high64 = 0};
+        return XXH32_digest((XXH32_state_t*)_state);
       case H64:
-        return {.low64 = XXH64_digest((XXH64_state_t*)_state), .high64 = 0};
+        return XXH64_digest((XXH64_state_t*)_state);
       case H3:
-        return {.low64 = XXH3_64bits_digest((XXH3_state_t*)_state),
-                .high64 = 0};
+        return XXH3_64bits_digest((XXH3_state_t*)_state);
       case H3_128:
         return XXH3_128bits_digest((XXH3_state_t*)_state);
       default:
-        return {.low64 = 0, .high64 = 0};
+        return GenericHashResult();
     }
   }
 
@@ -126,16 +145,16 @@ class XxHashDynamicState {
                                    size_t length, uint64_t seed) {
     switch (variant) {
       case H32:
-        return {.low64 = XXH32(data, length, seed), .high64=0};
+        return XXH32(data, length, seed);
       case H64:
-        return {.low64 = XXH64(data, length, seed), .high64=0};
+        return XXH64(data, length, seed);
         break;
       case H3:
-        return {.low64 = XXH3_64bits_withSeed(data, length, seed), .high64=0};
+        return XXH3_64bits_withSeed(data, length, seed);
       case H3_128:
         return XXH3_128bits_withSeed(data, length, seed);
       default:
-        return {.low64 = 0, .high64 = 0};
+        return GenericHashResult();
     }
   }
 

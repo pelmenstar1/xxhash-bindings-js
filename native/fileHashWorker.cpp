@@ -30,7 +30,7 @@ GenericHashResult MapHashWorker::Process(const HashWorkerContext& context) {
   }
 
   size_t size = file.GetSize();
-  GenericHashResult result = {.low64 = 0, .high64 = 0};
+  GenericHashResult result;
 
   file.Access(
       [&](const uint8_t* address) {
