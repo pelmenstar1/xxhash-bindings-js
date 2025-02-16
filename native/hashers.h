@@ -7,209 +7,139 @@
 
 enum HashVariant { H32, H64, H3, H3_128 };
 
-template <int Variant>
-struct XxHashTraits {};
+constexpr uint32_t HASH_VARIANTS_COUNT = 4;
 
-template <>
-struct XxHashTraits<H32> {
-  using State = XXH32_state_t;
-  using Seed = uint32_t;
-  using Result = uint32_t;
-
-  static State* NewState() { return XXH32_createState(); }
-  static void FreeState(State* state) { XXH32_freeState(state); }
-
-  static void Reset(State* state, Seed seed) { XXH32_reset(state, seed); }
-  static void Update(State* state, const uint8_t* buffer, size_t length) {
-    XXH32_update(state, buffer, length);
-  }
-  static Result Digest(const State* state) { return XXH32_digest(state); }
-
-  static Result Oneshot(const uint8_t* buffer, size_t length, Seed seed) {
-    return XXH32(buffer, length, seed);
-  }
-};
-
-template <>
-struct XxHashTraits<H64> {
-  using State = XXH64_state_t;
-  using Seed = uint64_t;
-  using Result = uint64_t;
-
-  static State* NewState() { return XXH64_createState(); }
-  static void FreeState(State* state) { XXH64_freeState(state); }
-
-  static void Reset(State* state, Seed seed) { XXH64_reset(state, seed); }
-  static void Update(State* state, const uint8_t* buffer, size_t length) {
-    XXH64_update(state, buffer, length);
-  }
-  static Result Digest(const State* state) { return XXH64_digest(state); }
-
-  static Result Oneshot(const uint8_t* buffer, size_t length, Seed seed) {
-    return XXH64(buffer, length, seed);
-  }
-};
-
-template <>
-struct XxHashTraits<H3> {
-  using State = XXH3_state_t;
-  using Seed = uint64_t;
-  using Result = uint64_t;
-
-  static State* NewState() { return XXH3_createState(); }
-  static void FreeState(State* state) { XXH3_freeState(state); }
-
-  static void Reset(State* state, Seed seed) {
-    XXH3_64bits_reset_withSeed(state, seed);
-  }
-  static void Update(State* state, const uint8_t* buffer, size_t length) {
-    XXH3_64bits_update(state, buffer, length);
-  }
-  static Result Digest(const State* state) { return XXH3_64bits_digest(state); }
-
-  static Result Oneshot(const uint8_t* buffer, size_t length, Seed seed) {
-    return XXH3_64bits_withSeed(buffer, length, seed);
-  }
-};
-
-template <>
-struct XxHashTraits<H3_128> {
-  using State = XXH3_state_t;
-  using Seed = uint64_t;
-  using Result = XXH128_hash_t;
-
-  static State* NewState() { return XXH3_createState(); }
-  static void FreeState(State* state) { XXH3_freeState(state); }
-
-  static void Reset(State* state, Seed seed) {
-    XXH3_128bits_reset_withSeed(state, seed);
-  }
-  static void Update(State* state, const uint8_t* buffer, size_t length) {
-    XXH3_128bits_update(state, buffer, length);
-  }
-  static Result Digest(const State* state) {
-    return XXH3_128bits_digest(state);
-  }
-
-  static Result Oneshot(const uint8_t* buffer, size_t length, Seed seed) {
-    return XXH3_128bits_withSeed(buffer, length, seed);
-  }
-};
-
-template <int Variant>
-using XxSeed = typename XxHashTraits<Variant>::Seed;
-
-template <int Variant>
-using XxResult = typename XxHashTraits<Variant>::Result;
-
-template <int Variant>
-using _XxHashState = typename XxHashTraits<Variant>::State;
-
-template <int Variant>
-class XxHashState {
- public:
-  XxHashState() {
-    _state = Traits::NewState();
-    if (_state == nullptr) {
-      throw std::runtime_error("Out of memory");
-    }
-  }
-
-  XxHashState(XxSeed<Variant> seed) : XxHashState<Variant>() { Reset(seed); }
-
-  XxHashState(const XxHashState<Variant>& source) = delete;
-
-  XxHashState(XxHashState<Variant>&& source) {
-    _state = source._state;
-    source._state = nullptr;
-  }
-
-  ~XxHashState() { Traits::FreeState(_state); }
-
-  XxHashState<Variant>& operator=(XxHashState<Variant>&& other) {
-    _state = other._state;
-    other._state = nullptr;
-  }
-
-  void Reset(XxSeed<Variant> seed) { Traits::Reset(_state, seed); }
-
-  void Update(const uint8_t* data, size_t length) {
-    Traits::Update(_state, data, length);
-  }
-
-  XxResult<Variant> GetResult() const { return Traits::Digest(_state); }
-
- private:
-  using Traits = XxHashTraits<Variant>;
-
-  _XxHashState<Variant>* _state = nullptr;
-};
+using GenericHashResult = XXH128_hash_t;
 
 class XxHashDynamicState {
  public:
-  virtual ~XxHashDynamicState() {
-  }
+  XxHashDynamicState() : _variant(0), _state(nullptr) {}
 
-  virtual void Reset(uint64_t seed) = 0;
-  virtual void Update(const uint8_t* data, size_t length) = 0;
+  XxHashDynamicState(uint32_t variant) : _variant(variant) {
+    switch (variant) {
+      case H32:
+        _state = XXH32_createState();
+        break;
+      case H64:
+        _state = XXH64_createState();
+        break;
+      case H3:
+      case H3_128:
+        _state = XXH3_createState();
+        break;
+    }
 
-  virtual XXH128_hash_t GetResult() const = 0;
-};
-
-template <int Variant>
-class XxHashDynamicStateImpl : public XxHashDynamicState {
- public:
-  XxHashDynamicStateImpl() {
-    _state = Traits::NewState();
     if (_state == nullptr) {
       throw std::runtime_error("Out of memory");
     }
   }
 
-  XxHashDynamicStateImpl(uint64_t seed) : XxHashDynamicStateImpl<Variant>() {
+  XxHashDynamicState(uint32_t variant, uint64_t seed)
+      : XxHashDynamicState(variant) {
     Reset(seed);
   }
 
-  XxHashDynamicStateImpl(const XxHashDynamicStateImpl<Variant>& source) = delete;
+  XxHashDynamicState(const XxHashDynamicState& source) = delete;
 
-  XxHashDynamicStateImpl(XxHashDynamicStateImpl<Variant>&& source) {
+  XxHashDynamicState(XxHashDynamicState&& source) {
+    _variant = source._variant;
     _state = source._state;
     source._state = nullptr;
   }
 
-  virtual ~XxHashDynamicStateImpl() override { Traits::FreeState(_state); }
+  ~XxHashDynamicState() {
+    if (_state != nullptr) {
+      switch (_variant) {
+        case H32:
+          XXH32_freeState((XXH32_state_t*)_state);
+          break;
+        case H64:
+          XXH64_freeState((XXH64_state_t*)_state);
+          break;
+        case H3:
+        case H3_128:
+          XXH3_freeState((XXH3_state_t*)_state);
+          break;
+      }
+    }
+  }
 
-  XxHashDynamicStateImpl<Variant>& operator=(XxHashDynamicStateImpl<Variant>&& other) {
+  XxHashDynamicState& operator=(XxHashDynamicState&& other) {
+    _variant = other._variant;
     _state = other._state;
     other._state = nullptr;
+
+    return *this;
   }
 
-  void Reset(uint64_t seed) override { Traits::Reset(_state, (XxSeed<Variant>)seed); }
-
-  void Update(const uint8_t* data, size_t length) override {
-    Traits::Update(_state, data, length);
+  void Reset(uint64_t seed) {
+    switch (_variant) {
+      case H32:
+        XXH32_reset((XXH32_state_t*)_state, seed);
+        break;
+      case H64:
+        XXH64_reset((XXH64_state_t*)_state, seed);
+        break;
+      case H3:
+        XXH3_64bits_reset_withSeed((XXH3_state_t*)_state, seed);
+        break;
+      case H3_128:
+        XXH3_128bits_reset_withSeed((XXH3_state_t*)_state, seed);
+        break;
+    }
   }
 
-  XXH128_hash_t GetResult() const override {
-    auto digest = Traits::Digest(_state);
+  void Update(const uint8_t* data, size_t length) {
+    switch (_variant) {
+      case H32:
+        XXH32_update((XXH32_state_t*)_state, data, length);
+        break;
+      case H64:
+        XXH64_update((XXH64_state_t*)_state, data, length);
+        break;
+      case H3:
+        XXH3_64bits_update((XXH3_state_t*)_state, data, length);
+        break;
+      case H3_128:
+        XXH3_128bits_update((XXH3_state_t*)_state, data, length);
+        break;
+    }
+  }
 
-    if constexpr (Variant == H3_128) {
-      return digest;
-    } else {
-      XXH128_hash_t result;
-      result.low64 = (uint64_t)digest;
+  XXH128_hash_t GetResult() const {
+    switch (_variant) {
+      case H32:
+        return {.low64 = XXH32_digest((XXH32_state_t*)_state), .high64 = 0};
+      case H64:
+        return {.low64 = XXH64_digest((XXH64_state_t*)_state), .high64 = 0};
+      case H3:
+        return {.low64 = XXH3_64bits_digest((XXH3_state_t*)_state),
+                .high64 = 0};
+      case H3_128:
+        return XXH3_128bits_digest((XXH3_state_t*)_state);
+      default:
+        return {.low64 = 0, .high64 = 0};
+    }
+  }
 
-      return result;
+  static GenericHashResult Oneshot(uint32_t variant, const uint8_t* data,
+                                   size_t length, uint64_t seed) {
+    switch (variant) {
+      case H32:
+        return {.low64 = XXH32(data, length, seed), .high64=0};
+      case H64:
+        return {.low64 = XXH64(data, length, seed), .high64=0};
+        break;
+      case H3:
+        return {.low64 = XXH3_64bits_withSeed(data, length, seed), .high64=0};
+      case H3_128:
+        return XXH3_128bits_withSeed(data, length, seed);
+      default:
+        return {.low64 = 0, .high64 = 0};
     }
   }
 
  private:
-  using Traits = XxHashTraits<Variant>;
-
-  _XxHashState<Variant>* _state = nullptr;
+  uint32_t _variant;
+  void* _state = nullptr;
 };
-
-using XxHashState32 = XxHashDynamicStateImpl<H32>;
-using XxHashState64 = XxHashDynamicStateImpl<H64>;
-using XxHashState3 = XxHashDynamicStateImpl<H3>;
-using XxHashState3_128 = XxHashDynamicStateImpl<H3_128>;

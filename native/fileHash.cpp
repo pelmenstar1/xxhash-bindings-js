@@ -11,8 +11,10 @@
 #include "platform/nativeString.h"
 #include "platform/platformError.h"
 
-template <int Variant>
+#undef max
+
 Napi::Value XxHashAddon::FileHash(const Napi::CallbackInfo& info) {
+  uint32_t variant = GetVariantData(info);
   auto env = info.Env();
 
   if (info.Length() != 1) {
@@ -22,19 +24,18 @@ Napi::Value XxHashAddon::FileHash(const Napi::CallbackInfo& info) {
   try {
     auto options = JsParseArgument<Napi::Object>(env, info[0], "options");
 
-    JS_PARSE_PROPERTY(options, path, Napi::String);
-    JS_PARSE_PROPERTY(options, seed, XxSeed<Variant>, 0);
-    JS_PARSE_PROPERTY(options, preferMap, bool, false);
-    JS_PARSE_PROPERTY(options, offset, uint64_t, 0);
-    JS_PARSE_PROPERTY(options, length, uint64_t,
-                      std::numeric_limits<uint64_t>::max());
+    auto path = JsParseProperty<Napi::String>(env, options, "path");
+    uint64_t seed = JsParseSeedProperty(env, variant, options);
+    auto preferMap = JsParseProperty<bool>(env, options, "preferMap", false);
+    auto offset = JsParseProperty<uint64_t>(env, options, "offset", 0);
+    auto length = JsParseProperty<uint64_t>(env, options, "length", std::numeric_limits<uint64_t>::max());
 
-    auto nativePath = JsStringToCString<NativeChar>(pathProp);
-    HashWorkerContext hashContext(nativePath, offsetProp, lengthProp);
+    auto nativePath = JsStringToCString<NativeChar>(path);
+    HashWorkerContext hashContext(nativePath, offset, length);
 
-    auto result = HashFile<Variant>(hashContext, seedProp, preferMapProp);
+    auto result = HashFile(hashContext, variant, seed, preferMap);
 
-    return JsValueConverter<XxResult<Variant>>::ConvertBack(env, result);
+    return JsParseHashResult(env, variant, result);
   } catch (const PlatformException& exc) {
     Napi::Error::New(env, exc.WhatJs(env)).ThrowAsJavaScriptException();
 
@@ -54,26 +55,25 @@ void ExecuteCallbackWithErrorOrThrow(Napi::Env env,
   }
 }
 
-template <int Variant>
 Napi::Value XxHashAddon::FileHashAsync(const Napi::CallbackInfo& info) {
   class ReaderWorker : public Napi::AsyncWorker {
    public:
-    ReaderWorker(Napi::Function callback, XxSeed<Variant> seed,
-                 NativeString path, size_t fileOffset, size_t length,
-                 bool preferMap)
+    ReaderWorker(uint32_t variant, uint64_t seed, NativeString path,
+                 size_t fileOffset, size_t length, bool preferMap,
+                 Napi::Function callback)
         : Napi::AsyncWorker(callback),
+          _variant(variant),
           _seed(seed),
           _path(path),
           _fileOffset(fileOffset),
-          _length(length),
-          _result(0),
-          _error(0) {}
+          _preferMap(preferMap),
+          _length(length) {}
 
     void Execute() {
       HashWorkerContext hashContext(_path, _fileOffset, _length);
 
       try {
-        _result = HashFile<Variant>(hashContext, _seed, _preferMap);
+        _result = HashFile(hashContext, _variant, _seed, _preferMap);
       } catch (PlatformException& exc) {
         _error = exc.ErrorCode();
       }
@@ -83,12 +83,12 @@ Napi::Value XxHashAddon::FileHashAsync(const Napi::CallbackInfo& info) {
       auto env = Env();
 
       if (_error == 0) {
-        auto jsResult =
-            JsValueConverter<XxResult<Variant>>::ConvertBack(env, _result);
+        auto jsResult = JsParseHashResult(env, _variant, _result);
 
         Callback().Call({env.Undefined(), jsResult});
       } else {
-        auto jsErrorMessage = PlatformException::FormatErrorToJsString(env, _error);
+        auto jsErrorMessage =
+            PlatformException::FormatErrorToJsString(env, _error);
         auto jsError = Napi::Error::New(env, jsErrorMessage).Value();
 
         Callback().Call({jsError, env.Undefined()});
@@ -96,16 +96,18 @@ Napi::Value XxHashAddon::FileHashAsync(const Napi::CallbackInfo& info) {
     }
 
    private:
+    uint32_t _variant;
     NativeString _path;
     size_t _fileOffset;
     size_t _length;
-    XxSeed<Variant> _seed;
+    uint64_t _seed;
     bool _preferMap;
 
-    XxResult<Variant> _result;
-    ErrorDesc _error;
+    GenericHashResult _result;
+    ErrorDesc _error = 0;
   };
 
+  uint32_t variant = GetVariantData(info);
   Napi::Env env = info.Env();
 
   if (info.Length() != 2) {
@@ -117,18 +119,16 @@ Napi::Value XxHashAddon::FileHashAsync(const Napi::CallbackInfo& info) {
     callback = JsParseArgument<Napi::Function>(env, info[1], "callback");
     auto options = JsParseArgument<Napi::Object>(env, info[0], "options");
 
-    JS_PARSE_PROPERTY(options, path, Napi::String);
-    JS_PARSE_PROPERTY(options, seed, XxSeed<Variant>, 0);
-    JS_PARSE_PROPERTY(options, preferMap, bool, false);
-    JS_PARSE_PROPERTY(options, offset, uint64_t, 0);
-    JS_PARSE_PROPERTY(options, length, uint64_t,
-                      std::numeric_limits<uint64_t>::max());
+    auto path = JsParseProperty<Napi::String>(env, options, "path");
+    uint64_t seed = JsParseSeedProperty(env, variant, options);
+    auto preferMap = JsParseProperty<bool>(env, options, "preferMap", false);
+    auto offset = JsParseProperty<uint64_t>(env, options, "offset", 0);
+    auto length = JsParseProperty<uint64_t>(env, options, "length", std::numeric_limits<uint64_t>::max());
+
+    auto nativePath = JsStringToCString<NativeChar>(path);
     
-    auto nativePath = JsStringToCString<NativeChar>(pathProp);
-    
-    ReaderWorker* worker = new ReaderWorker(
-        callback, seedProp, nativePath, offsetProp,
-        lengthProp, preferMapProp);
+    ReaderWorker* worker = new ReaderWorker(variant, seed, nativePath, offset,
+                                            length, preferMap, callback);
     worker->Queue();
   } catch (const PlatformException& exc) {
     ExecuteCallbackWithErrorOrThrow(env, callback, exc.WhatJs(env));
@@ -139,6 +139,3 @@ Napi::Value XxHashAddon::FileHashAsync(const Napi::CallbackInfo& info) {
 
   return env.Undefined();
 }
-
-INSTANTIATE_ADDON_METHOD(FileHash)
-INSTANTIATE_ADDON_METHOD(FileHashAsync)

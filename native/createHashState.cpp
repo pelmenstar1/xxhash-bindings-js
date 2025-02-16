@@ -4,12 +4,9 @@
 #include "index.h"
 #include "jsHashState.h"
 
-template <int Variant>
 Napi::Value XxHashAddon::CreateHashState(const Napi::CallbackInfo& info) {
   auto env = info.Env();
-  auto cons = reinterpret_cast<Napi::FunctionReference*>(info.Data());
+  auto data = (CreateStateData*)info.Data();
 
-  return cons->New({Napi::Number::New(env, Variant), info[0]});;
+  return data->constructor->New({Napi::Number::New(env, data->variant), info[0]});
 }
-
-INSTANTIATE_ADDON_METHOD(CreateHashState)

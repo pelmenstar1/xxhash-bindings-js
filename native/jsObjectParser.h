@@ -45,7 +45,7 @@ struct JsValueConverter {
 
 template <typename T>
 T JsParseArgument(Napi::Env env, Napi::Value value, const char* name) {
-  return JsValueConverter<T>::Convert(env, value, {env,name, "parameter"});
+  return JsValueConverter<T>::Convert(env, value, {env, name, "parameter"});
 }
 
 template <typename T>
@@ -79,17 +79,3 @@ T JsParseProperty(Napi::Env env, Napi::Object object, const char* name,
 
   return defaultValue;
 }
-
-#ifdef _MSC_VER
-#define CROSS_VA_COMMA(...) , __VA_ARGS__
-#else
-#define CROSS_VA_COMMA(...) __VA_OPT__(, ) __VA_ARGS__
-#endif
-
-#define JS_PARSE_PROPERTY(object, name, cType, ...) \
-  cType name##Prop =                                \
-      JsParseProperty<cType>(env, object, #name CROSS_VA_COMMA(__VA_ARGS__))
-
-#define JS_PARSE_ARGUMENT(name, index, cType, ...) \
-  name = JsParseArgument<cType>(env, info[index],  \
-                                #name CROSS_VA_COMMA(__VA_ARGS__))

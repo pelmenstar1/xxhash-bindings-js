@@ -9,7 +9,6 @@
 class JsHashStateObject : public Napi::ObjectWrap<JsHashStateObject> {
  public:
   JsHashStateObject(const Napi::CallbackInfo& info);
-  ~JsHashStateObject() { delete _state; }
 
   Napi::Value Reset(const Napi::CallbackInfo& info);
   Napi::Value Update(const Napi::CallbackInfo& info);
@@ -18,7 +17,7 @@ class JsHashStateObject : public Napi::ObjectWrap<JsHashStateObject> {
   static Napi::Function Init(Napi::Env env);
 
  private:
-  XxHashDynamicState* _state;
+  XxHashDynamicState _state;
   uint32_t _variant;
   uint64_t _seed;
 };

@@ -35,13 +35,17 @@ async function main() {
 
   process.chdir('../library');
 
-  await runCommand('yarn', [
-    'node-gyp',
-    'configure',
-    ...(debug ? ['--debug'] : []),
-  ]);
+  if (!options.has('no-conf')) {
+    await runCommand('yarn', [
+      'node-gyp',
+      'configure',
+      ...(debug ? ['--debug'] : []),
+    ]);
+  }
+
   await runCommand('yarn', ['node-gyp', 'build', '-j', 'max']);
 
+  await fs.promises.mkdir('./dist', { recursive: true });
   await Promise.all([
     fs.promises.cp(
       `./build/${debug ? 'Debug' : 'Release'}/xxhash.node`,

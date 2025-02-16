@@ -1,27 +1,26 @@
 #include "hashers.h"
 #include "index.h"
 #include "jsObjectParser.h"
+#include "jsUtils.h"
 
-template <int Variant>
 Napi::Value XxHashAddon::OneshotHash(const Napi::CallbackInfo& info) {
   auto env = info.Env();
+  uint32_t variant = GetVariantData(info);
 
   RawSizedArray data;
-  XxSeed<Variant> seed = 0;
+  uint64_t seed = 0;
 
   switch (info.Length()) {
     case 2:
-      JS_PARSE_ARGUMENT(seed, 1, XxSeed<Variant>, 0);
+      seed = JsParseSeedArgument(env, variant, info[1]);
     case 1:
-      JS_PARSE_ARGUMENT(data, 0, RawSizedArray);
+      data = JsParseArgument<RawSizedArray>(env, info[0], "data");
       break;
     default:
       throw Napi::Error::New(env, "Wrong number of arguments");
   }
 
-  auto result = XxHashTraits<Variant>::Oneshot(data.data, data.length, seed);
+  auto result = XxHashDynamicState::Oneshot(variant, data.data, data.length, seed);
 
-  return JsValueConverter<XxResult<Variant>>::ConvertBack(env, result);
+  return JsParseHashResult(env, variant, result);
 }
-
-INSTANTIATE_ADDON_METHOD(OneshotHash)

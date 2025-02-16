@@ -1,25 +1,33 @@
 #include <napi.h>
 #include "jsHashState.h"
+#include "hashers.h"
 
-#define DECLARE_INSTANCE_METHOD(name) \
-  template <int Variant>            \
-  Napi::Value name(const Napi::CallbackInfo& info)
+struct CreateStateData {
+  uint32_t variant;
+  Napi::FunctionReference* constructor;
 
-#define _INSTANTIATE_ADDON_METHOD(name, variant) \
-  template Napi::Value XxHashAddon::name<variant>(const Napi::CallbackInfo& info);
+  CreateStateData(): variant(0), constructor(nullptr) {
+  }
 
-#define INSTANTIATE_ADDON_METHOD(name) \
-  _INSTANTIATE_ADDON_METHOD(name, H32) \
-  _INSTANTIATE_ADDON_METHOD(name, H64) \
-  _INSTANTIATE_ADDON_METHOD(name, H3)  \
-  _INSTANTIATE_ADDON_METHOD(name, H3_128)
+  CreateStateData(uint32_t variant, Napi::FunctionReference* constructor): variant(variant), constructor(constructor) {
+  }
+};
+
+struct AddonData {
+  CreateStateData variants[HASH_VARIANTS_COUNT];
+};
 
 class XxHashAddon : public Napi::Addon<XxHashAddon> {
   public:
     XxHashAddon(Napi::Env env, Napi::Object exports);
 
-    DECLARE_INSTANCE_METHOD(OneshotHash);
-    DECLARE_INSTANCE_METHOD(CreateHashState);
-    DECLARE_INSTANCE_METHOD(FileHash);
-    DECLARE_INSTANCE_METHOD(FileHashAsync);
+    Napi::Value OneshotHash(const Napi::CallbackInfo& info);
+    Napi::Value CreateHashState(const Napi::CallbackInfo& info);
+    Napi::Value FileHash(const Napi::CallbackInfo& info);
+    Napi::Value FileHashAsync(const Napi::CallbackInfo& info);
+
+  private:
+    static uint32_t GetVariantData(const Napi::CallbackInfo& info) {
+      return (uint32_t)reinterpret_cast<size_t>(info.Data());
+    }
 };
